@@ -15,6 +15,8 @@ import Account from "./pages/customer/Account";
 import MembershipApplication from "./pages/customer/MembershipApplication";
 import StaffDashboard from "./pages/staff/Dashboard";
 import StaffSearch from "./pages/staff/Search";
+import StaffApplications from "./pages/staff/Applications";
+import ApplicationDetail from "./pages/staff/ApplicationDetail";
 import CustomerDetail from "./pages/staff/CustomerDetail";
 import AddPour from "./pages/staff/AddPour";
 import AddMembership from "./pages/staff/AddMembership";
@@ -71,6 +73,16 @@ const App = () => (
             <Route path="/staff/search" element={
               <ProtectedRoute requiredRole="staff">
                 <StaffSearch />
+              </ProtectedRoute>
+            } />
+            <Route path="/staff/applications" element={
+              <ProtectedRoute requiredRole="staff">
+                <StaffApplications />
+              </ProtectedRoute>
+            } />
+            <Route path="/staff/applications/:id" element={
+              <ProtectedRoute requiredRole="staff">
+                <ApplicationDetail />
               </ProtectedRoute>
             } />
             <Route path="/staff/customers/:id" element={

@@ -2,10 +2,35 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { QrCode, Search } from 'lucide-react';
+import { QrCode, Search, FileText } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { supabase } from '@/integrations/supabase/client';
+import { Badge } from '@/components/ui/badge';
 
 export default function StaffDashboard() {
   const { signOut } = useAuth();
+  const [pendingCount, setPendingCount] = useState(0);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchPendingCount();
+  }, []);
+
+  const fetchPendingCount = async () => {
+    try {
+      const { count, error } = await supabase
+        .from('membership_applications')
+        .select('*', { count: 'exact', head: true })
+        .eq('status', 'pending');
+
+      if (error) throw error;
+      setPendingCount(count || 0);
+    } catch (error) {
+      console.error('Error fetching pending count:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <div className="min-h-screen p-4 md:p-8">
@@ -35,6 +60,25 @@ export default function StaffDashboard() {
             </Link>
           </Button>
         </div>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center justify-between">
+              <span>Membership Applications</span>
+              {!loading && pendingCount > 0 && (
+                <Badge className="bg-yellow-500">{pendingCount} Pending</Badge>
+              )}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <Button asChild className="w-full" size="lg">
+              <Link to="/staff/applications" className="flex items-center gap-2">
+                <FileText className="h-5 w-5" />
+                Review Applications
+              </Link>
+            </Button>
+          </CardContent>
+        </Card>
       </div>
     </div>
   );

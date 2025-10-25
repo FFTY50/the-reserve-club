@@ -12,6 +12,7 @@ import Dashboard from "./pages/customer/Dashboard";
 import QRCode from "./pages/customer/QRCode";
 import PoursHistory from "./pages/customer/PoursHistory";
 import Account from "./pages/customer/Account";
+import MembershipApplication from "./pages/customer/MembershipApplication";
 import StaffDashboard from "./pages/staff/Dashboard";
 import StaffSearch from "./pages/staff/Search";
 import CustomerDetail from "./pages/staff/CustomerDetail";
@@ -38,6 +39,11 @@ const App = () => (
             <Route path="/dashboard" element={
               <ProtectedRoute requiredRole="customer">
                 <Dashboard />
+              </ProtectedRoute>
+            } />
+            <Route path="/apply" element={
+              <ProtectedRoute requiredRole="customer">
+                <MembershipApplication />
               </ProtectedRoute>
             } />
             <Route path="/qr-code" element={

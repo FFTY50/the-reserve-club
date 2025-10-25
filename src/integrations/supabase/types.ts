@@ -77,6 +77,42 @@ export type Database = {
           },
         ]
       }
+      membership_applications: {
+        Row: {
+          created_at: string | null
+          id: string
+          notes: string | null
+          preferences: Json
+          reviewed_at: string | null
+          reviewed_by_staff_id: string | null
+          status: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          notes?: string | null
+          preferences: Json
+          reviewed_at?: string | null
+          reviewed_by_staff_id?: string | null
+          status?: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          notes?: string | null
+          preferences?: Json
+          reviewed_at?: string | null
+          reviewed_by_staff_id?: string | null
+          status?: string
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       memberships: {
         Row: {
           created_at: string | null

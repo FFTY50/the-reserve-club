@@ -13,6 +13,7 @@ import QRCode from "./pages/customer/QRCode";
 import PoursHistory from "./pages/customer/PoursHistory";
 import Account from "./pages/customer/Account";
 import MembershipApplication from "./pages/customer/MembershipApplication";
+import PaymentSuccess from "./pages/customer/PaymentSuccess";
 import StaffDashboard from "./pages/staff/Dashboard";
 import StaffSearch from "./pages/staff/Search";
 import StaffApplications from "./pages/staff/Applications";
@@ -46,6 +47,11 @@ const App = () => (
             <Route path="/apply" element={
               <ProtectedRoute requiredRole="customer">
                 <MembershipApplication />
+              </ProtectedRoute>
+            } />
+            <Route path="/payment-success" element={
+              <ProtectedRoute requiredRole="customer">
+                <PaymentSuccess />
               </ProtectedRoute>
             } />
             <Route path="/qr-code" element={

@@ -140,31 +140,44 @@ export default function MembershipApplication() {
     checkExistingApplication();
   }, [user, setValue]);
 
-  const onSubmit = async (data: ApplicationFormData) => {
+  const handleTierSelection = async (tierName: 'select' | 'premier' | 'elite' | 'household') => {
     setIsSubmitting(true);
     try {
+      const currentData = watch();
       const applicationData = {
         id: existingApplicationId,
-        user_id: user?.id,
-        preferences: data,
-        selected_tier: data.selected_tier,
+        user_id: user?.id!,
+        preferences: currentData as any,
+        selected_tier: tierName,
         current_step: 5,
-        status: 'pending',
+        status: 'pending' as const,
         is_complete: true,
       };
 
-      const { error } = await supabase
+      const { data: appData, error: appError } = await supabase
         .from('membership_applications')
-        .upsert(applicationData);
+        .upsert([applicationData])
+        .select()
+        .single();
 
-      if (error) throw error;
+      if (appError) throw appError;
 
-      toast.success('Application submitted successfully! Staff will review your application.');
-      navigate('/dashboard');
+      // Create Stripe checkout session
+      const { data: session, error: sessionError } = await supabase.functions.invoke('create-checkout', {
+        body: {
+          tierName,
+          applicationId: appData.id,
+          userId: user?.id,
+        }
+      });
+
+      if (sessionError) throw sessionError;
+
+      // Redirect to Stripe
+      window.location.href = session.url;
     } catch (error) {
-      console.error('Error submitting application:', error);
-      toast.error('Failed to submit application. Please try again.');
-    } finally {
+      console.error('Error creating checkout:', error);
+      toast.error('Failed to start payment process. Please try again.');
       setIsSubmitting(false);
     }
   };
@@ -269,7 +282,7 @@ export default function MembershipApplication() {
             <Progress value={progress} className="mt-4" />
           </CardHeader>
           <CardContent>
-            <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
+            <div className="space-y-8">
               {step === 1 && (
                 <div className="space-y-8">
                   <h3 className="text-xl font-semibold">Wine Experience Level</h3>
@@ -397,82 +410,76 @@ export default function MembershipApplication() {
                 <div className="space-y-8">
                   <h3 className="text-xl font-semibold">Choose Your Membership Tier</h3>
                   <p className="text-muted-foreground">
-                    Select the membership tier that best fits your wine journey
+                    Select a tier below to continue to secure payment
                   </p>
 
-                  <RadioGroup
-                    value={watch('selected_tier')}
-                    onValueChange={(value) => setValue('selected_tier', value as any)}
-                  >
-                    <div className="grid gap-4">
-                      {tierOptions.map((tier) => (
-                        <Label
-                          key={tier.tier_name}
-                          htmlFor={tier.tier_name}
-                          className="cursor-pointer"
-                        >
-                          <Card className={`transition-all hover:border-primary ${
-                            watch('selected_tier') === tier.tier_name ? 'border-primary ring-2 ring-primary' : ''
-                          }`}>
-                            <CardContent className="flex items-start gap-4 p-6">
-                              <RadioGroupItem value={tier.tier_name} id={tier.tier_name} className="mt-1" />
-                              <div className="flex-1 space-y-2">
-                                <div className="flex items-center justify-between">
-                                  <h4 className="text-lg font-semibold flex items-center gap-2">
-                                    <Wine className="h-5 w-5 text-primary" />
-                                    {tier.display_name}
-                                  </h4>
-                                  <div className="text-right">
-                                    <p className="text-2xl font-bold">${tier.monthly_price}</p>
-                                    <p className="text-xs text-muted-foreground">per month</p>
-                                  </div>
-                                </div>
-                                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                                  <span className="font-semibold text-primary">{tier.monthly_pours}</span>
-                                  <span>pours per month</span>
-                                </div>
-                                {tier.description && (
-                                  <p className="text-sm text-muted-foreground pt-2">
-                                    {tier.description}
-                                  </p>
-                                )}
-                              </div>
-                            </CardContent>
-                          </Card>
-                        </Label>
-                      ))}
+                  {isSubmitting && (
+                    <div className="absolute inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center z-50 rounded-lg">
+                      <div className="text-center space-y-4">
+                        <div className="h-12 w-12 animate-spin rounded-full border-4 border-primary border-t-transparent mx-auto"></div>
+                        <p className="text-lg font-medium">Redirecting to secure payment...</p>
+                      </div>
                     </div>
-                  </RadioGroup>
-                  
-                  {errors.selected_tier && (
-                    <p className="text-sm text-destructive">{errors.selected_tier.message}</p>
                   )}
+
+                  <div className="grid gap-4 relative">
+                    {tierOptions.map((tier) => (
+                      <Card 
+                        key={tier.tier_name}
+                        className="transition-all hover:border-primary hover:shadow-lg cursor-pointer"
+                        onClick={() => !isSubmitting && handleTierSelection(tier.tier_name as 'select' | 'premier' | 'elite' | 'household')}
+                      >
+                        <CardContent className="flex items-start gap-4 p-6">
+                          <div className="flex-1 space-y-2">
+                            <div className="flex items-center justify-between">
+                              <h4 className="text-lg font-semibold flex items-center gap-2">
+                                <Wine className="h-5 w-5 text-primary" />
+                                {tier.display_name}
+                              </h4>
+                              <div className="text-right">
+                                <p className="text-2xl font-bold">${tier.monthly_price}</p>
+                                <p className="text-xs text-muted-foreground">per month</p>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                              <span className="font-semibold text-primary">{tier.monthly_pours}</span>
+                              <span>pours per month</span>
+                            </div>
+                            {tier.description && (
+                              <p className="text-sm text-muted-foreground pt-2">
+                                {tier.description}
+                              </p>
+                            )}
+                            <p className="text-sm text-primary font-medium pt-2">
+                              Continue to Payment →
+                            </p>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
                 </div>
               )}
 
-              <div className="flex justify-between pt-6">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={prevStep}
-                  disabled={step === 1}
-                >
-                  <ChevronLeft className="h-4 w-4 mr-2" />
-                  Previous
-                </Button>
+              {step < totalSteps && (
+                <div className="flex justify-between pt-6">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={prevStep}
+                    disabled={step === 1}
+                  >
+                    <ChevronLeft className="h-4 w-4 mr-2" />
+                    Previous
+                  </Button>
 
-                {step < totalSteps ? (
                   <Button type="button" onClick={nextStep}>
                     Next
                     <ChevronRight className="h-4 w-4 ml-2" />
                   </Button>
-                ) : (
-                  <Button type="submit" disabled={isSubmitting}>
-                    {isSubmitting ? 'Submitting...' : 'Submit Application'}
-                  </Button>
-                )}
-              </div>
-            </form>
+                </div>
+              )}
+            </div>
           </CardContent>
         </Card>
       </div>

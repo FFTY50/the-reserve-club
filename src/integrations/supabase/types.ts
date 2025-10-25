@@ -89,6 +89,7 @@ export type Database = {
           reviewed_by_staff_id: string | null
           selected_tier: Database["public"]["Enums"]["customer_tier"] | null
           status: string
+          stripe_session_id: string | null
           updated_at: string | null
           user_id: string
         }
@@ -103,6 +104,7 @@ export type Database = {
           reviewed_by_staff_id?: string | null
           selected_tier?: Database["public"]["Enums"]["customer_tier"] | null
           status?: string
+          stripe_session_id?: string | null
           updated_at?: string | null
           user_id: string
         }
@@ -117,6 +119,7 @@ export type Database = {
           reviewed_by_staff_id?: string | null
           selected_tier?: Database["public"]["Enums"]["customer_tier"] | null
           status?: string
+          stripe_session_id?: string | null
           updated_at?: string | null
           user_id?: string
         }
@@ -132,6 +135,8 @@ export type Database = {
           recorded_by_staff_id: string | null
           start_date: string
           status: Database["public"]["Enums"]["membership_status"]
+          stripe_customer_id: string | null
+          stripe_subscription_id: string | null
           tier: Database["public"]["Enums"]["customer_tier"]
           toast_reference_number: string
           updated_at: string | null
@@ -145,6 +150,8 @@ export type Database = {
           recorded_by_staff_id?: string | null
           start_date?: string
           status?: Database["public"]["Enums"]["membership_status"]
+          stripe_customer_id?: string | null
+          stripe_subscription_id?: string | null
           tier: Database["public"]["Enums"]["customer_tier"]
           toast_reference_number: string
           updated_at?: string | null
@@ -158,6 +165,8 @@ export type Database = {
           recorded_by_staff_id?: string | null
           start_date?: string
           status?: Database["public"]["Enums"]["membership_status"]
+          stripe_customer_id?: string | null
+          stripe_subscription_id?: string | null
           tier?: Database["public"]["Enums"]["customer_tier"]
           toast_reference_number?: string
           updated_at?: string | null
@@ -280,6 +289,7 @@ export type Database = {
           is_active: boolean | null
           monthly_pours: number
           monthly_price: number
+          stripe_price_id: string | null
           tier_name: Database["public"]["Enums"]["customer_tier"]
         }
         Insert: {
@@ -289,6 +299,7 @@ export type Database = {
           is_active?: boolean | null
           monthly_pours: number
           monthly_price: number
+          stripe_price_id?: string | null
           tier_name: Database["public"]["Enums"]["customer_tier"]
         }
         Update: {
@@ -298,6 +309,7 @@ export type Database = {
           is_active?: boolean | null
           monthly_pours?: number
           monthly_price?: number
+          stripe_price_id?: string | null
           tier_name?: Database["public"]["Enums"]["customer_tier"]
         }
         Relationships: []

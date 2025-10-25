@@ -67,7 +67,7 @@ export default function Dashboard() {
         // Check if user has a pending application
         const { data: application } = await supabase
           .from('membership_applications')
-          .select('status, is_complete, selected_tier, current_step, preferences')
+          .select('status, is_complete, selected_tier, current_step, preferences, stripe_session_id')
           .eq('user_id', user.id)
           .eq('status', 'pending')
           .maybeSingle();
@@ -80,9 +80,16 @@ export default function Dashboard() {
             return;
           }
           
-          // Application is complete - show dialog
-          setHasPendingApplication(true);
-          setShowApplicationDialog(true);
+          // Check payment status
+          if (application.status === 'pending' && application.stripe_session_id) {
+            // Payment was initiated but not completed
+            setHasPendingApplication(true);
+            setShowApplicationDialog(true);
+          } else if (application.status === 'pending') {
+            // No payment session - redirect to complete payment
+            navigate('/apply');
+            return;
+          }
         }
       }
     } catch (error) {
@@ -132,11 +139,11 @@ export default function Dashboard() {
             <AlertDialogHeader>
               <AlertDialogTitle className="flex items-center gap-2">
                 <Clock className="h-5 w-5 text-primary" />
-                Application Received
+                Complete Your Payment
               </AlertDialogTitle>
               <AlertDialogDescription className="space-y-4 pt-2">
                 <p>
-                  Thank you for applying to our wine club! Your application is currently under review by our staff.
+                  Your application is saved, but we're waiting for payment confirmation to activate your membership.
                 </p>
                 
                 <div className="flex flex-col items-center gap-3 py-4 bg-background rounded-lg border">
@@ -154,15 +161,19 @@ export default function Dashboard() {
                   </p>
                 </div>
 
-                <p>
-                  Below is a preview of what your member dashboard will look like once approved.
-                </p>
                 <p className="text-sm font-medium">
-                  We'll notify you as soon as your application has been reviewed.
+                  Click below to return to payment and complete your membership.
                 </p>
               </AlertDialogDescription>
             </AlertDialogHeader>
-            <Button onClick={() => setShowApplicationDialog(false)}>View Preview</Button>
+            <div className="flex gap-3">
+              <Button onClick={() => navigate('/apply')} className="flex-1">
+                Complete Payment
+              </Button>
+              <Button variant="outline" onClick={() => setShowApplicationDialog(false)}>
+                Later
+              </Button>
+            </div>
           </AlertDialogContent>
         </AlertDialog>
 

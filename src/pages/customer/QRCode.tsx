@@ -21,6 +21,7 @@ export default function QRCodePage() {
   const { user } = useAuth();
   const [customerData, setCustomerData] = useState<CustomerData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [hasPendingApplication, setHasPendingApplication] = useState(false);
 
   useEffect(() => {
     fetchCustomerData();
@@ -34,7 +35,7 @@ export default function QRCodePage() {
         .from('customers')
         .select('id, activation_key, tier, member_since')
         .eq('user_id', user.id)
-        .single();
+        .maybeSingle();
 
       const { data: profile } = await supabase
         .from('profiles')
@@ -44,6 +45,26 @@ export default function QRCodePage() {
 
       if (customer && profile) {
         setCustomerData({ ...customer, ...profile });
+      } else if (profile) {
+        // Check for pending application
+        const { data: application } = await supabase
+          .from('membership_applications')
+          .select('status')
+          .eq('user_id', user.id)
+          .eq('status', 'pending')
+          .maybeSingle();
+
+        if (application) {
+          setHasPendingApplication(true);
+          // Set basic data for display
+          setCustomerData({
+            id: user.id,
+            activation_key: '',
+            tier: 'select',
+            member_since: new Date().toISOString(),
+            ...profile
+          });
+        }
       }
     } catch (error) {
       console.error('Error fetching customer data:', error);
@@ -95,17 +116,20 @@ export default function QRCodePage() {
           <CardHeader>
             <CardTitle>No Membership Found</CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="space-y-4">
             <p className="text-muted-foreground">
-              Please contact staff to activate your membership.
+              You don't have an active membership yet. Apply now to join our exclusive wine club!
             </p>
+            <Button asChild>
+              <Link to="/apply">Apply for Membership</Link>
+            </Button>
           </CardContent>
         </Card>
       </div>
     );
   }
 
-  const qrValue = `${customerData.id}|${customerData.activation_key}`;
+  const qrValue = hasPendingApplication ? user?.id || '' : `${customerData.id}|${customerData.activation_key}`;
 
   return (
     <div className="min-h-screen p-4 md:p-8">
@@ -119,7 +143,14 @@ export default function QRCodePage() {
 
         <Card>
           <CardHeader>
-            <CardTitle className="text-center text-2xl">Your Digital Membership Card</CardTitle>
+            <CardTitle className="text-center text-2xl">
+              {hasPendingApplication ? 'Your Application QR Code' : 'Your Digital Membership Card'}
+            </CardTitle>
+            {hasPendingApplication && (
+              <p className="text-center text-sm text-muted-foreground">
+                Application pending - Staff can scan this to verify your application
+              </p>
+            )}
           </CardHeader>
           <CardContent className="space-y-6">
             <div className="flex justify-center">
@@ -137,7 +168,10 @@ export default function QRCodePage() {
             </div>
 
             <p className="text-center text-muted-foreground">
-              Show this to staff for quick lookup
+              {hasPendingApplication 
+                ? 'Show this to staff to verify your pending application'
+                : 'Show this to staff for quick lookup'
+              }
             </p>
 
             <div className="flex gap-4 justify-center">
@@ -152,25 +186,37 @@ export default function QRCodePage() {
             </div>
 
             <div className="border-t pt-6 space-y-2">
-              <h3 className="font-serif text-lg mb-4">Card Details</h3>
+              <h3 className="font-serif text-lg mb-4">
+                {hasPendingApplication ? 'Applicant Details' : 'Card Details'}
+              </h3>
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <p className="text-sm text-muted-foreground">Name</p>
                   <p className="font-medium">{customerData.first_name} {customerData.last_name}</p>
                 </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Tier</p>
-                  <TierBadge tier={customerData.tier} />
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Member Since</p>
-                  <p className="font-medium">
-                    {new Date(customerData.member_since).toLocaleDateString('en-US', {
-                      month: 'long',
-                      year: 'numeric',
-                    })}
-                  </p>
-                </div>
+                {!hasPendingApplication && (
+                  <>
+                    <div>
+                      <p className="text-sm text-muted-foreground">Tier</p>
+                      <TierBadge tier={customerData.tier} />
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">Member Since</p>
+                      <p className="font-medium">
+                        {new Date(customerData.member_since).toLocaleDateString('en-US', {
+                          month: 'long',
+                          year: 'numeric',
+                        })}
+                      </p>
+                    </div>
+                  </>
+                )}
+                {hasPendingApplication && (
+                  <div>
+                    <p className="text-sm text-muted-foreground">Status</p>
+                    <p className="font-medium text-amber-600">Application Pending</p>
+                  </div>
+                )}
               </div>
             </div>
           </CardContent>

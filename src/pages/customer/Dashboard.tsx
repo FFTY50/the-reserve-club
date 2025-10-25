@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { TierBadge } from '@/components/TierBadge';
@@ -20,6 +20,7 @@ interface CustomerData {
 
 export default function Dashboard() {
   const { user, signOut } = useAuth();
+  const navigate = useNavigate();
   const [customerData, setCustomerData] = useState<CustomerData | null>(null);
   const [loading, setLoading] = useState(true);
   const [firstName, setFirstName] = useState('');
@@ -66,12 +67,20 @@ export default function Dashboard() {
         // Check if user has a pending application
         const { data: application } = await supabase
           .from('membership_applications')
-          .select('status')
+          .select('status, is_complete, selected_tier, current_step, preferences')
           .eq('user_id', user.id)
           .eq('status', 'pending')
           .maybeSingle();
 
         if (application) {
+          // Check if application is incomplete
+          if (!application.is_complete || !application.selected_tier) {
+            // Redirect to continue application
+            navigate('/apply');
+            return;
+          }
+          
+          // Application is complete - show dialog
           setHasPendingApplication(true);
           setShowApplicationDialog(true);
         }

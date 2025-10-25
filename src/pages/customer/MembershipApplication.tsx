@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -8,10 +8,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Label } from '@/components/ui/label';
 import { Slider } from '@/components/ui/slider';
 import { Progress } from '@/components/ui/progress';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Wine } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'react-hot-toast';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 
 const applicationSchema = z.object({
   // Page 1: Experience Level
@@ -36,13 +37,27 @@ const applicationSchema = z.object({
   event_interest: z.number().min(1).max(10),
   budget_comfort: z.number().min(1).max(10),
   membership_goals: z.string().min(10).max(500),
+  
+  // Page 5: Tier Selection
+  selected_tier: z.enum(['select', 'premier', 'elite', 'household']),
 });
 
 type ApplicationFormData = z.infer<typeof applicationSchema>;
 
+interface TierDefinition {
+  tier_name: string;
+  display_name: string;
+  monthly_price: number;
+  monthly_pours: number;
+  description: string | null;
+}
+
 export default function MembershipApplication() {
   const [step, setStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [existingApplicationId, setExistingApplicationId] = useState<string | null>(null);
+  const [tierOptions, setTierOptions] = useState<TierDefinition[]>([]);
+  const [isLoadingApplication, setIsLoadingApplication] = useState(true);
   const navigate = useNavigate();
   const { user } = useAuth();
   
@@ -64,23 +79,83 @@ export default function MembershipApplication() {
       event_interest: 5,
       budget_comfort: 5,
       membership_goals: '',
+      selected_tier: 'select',
     },
   });
 
-  const totalSteps = 4;
+  const totalSteps = 5;
   const progress = (step / totalSteps) * 100;
+
+  // Load tier options
+  useEffect(() => {
+    const fetchTiers = async () => {
+      const { data } = await supabase
+        .from('tier_definitions')
+        .select('*')
+        .eq('is_active', true)
+        .order('monthly_price', { ascending: true });
+      
+      if (data) setTierOptions(data);
+    };
+    fetchTiers();
+  }, []);
+
+  // Check for existing application and resume
+  useEffect(() => {
+    const checkExistingApplication = async () => {
+      if (!user) return;
+
+      try {
+        const { data } = await supabase
+          .from('membership_applications')
+          .select('*')
+          .eq('user_id', user.id)
+          .eq('status', 'pending')
+          .maybeSingle();
+
+        if (data && !data.is_complete) {
+          // Resume from saved step
+          setExistingApplicationId(data.id);
+          setStep(data.current_step || 1);
+          
+          // Pre-populate form with saved preferences
+          const prefs = data.preferences as any;
+          Object.keys(prefs).forEach((key) => {
+            setValue(key as keyof ApplicationFormData, prefs[key]);
+          });
+          
+          if (data.selected_tier) {
+            setValue('selected_tier', data.selected_tier);
+          }
+          
+          toast.success('Resuming your application from where you left off');
+        }
+      } catch (error) {
+        console.error('Error checking existing application:', error);
+      } finally {
+        setIsLoadingApplication(false);
+      }
+    };
+
+    checkExistingApplication();
+  }, [user, setValue]);
 
   const onSubmit = async (data: ApplicationFormData) => {
     setIsSubmitting(true);
     try {
-      // Store application data (we'll create a table for this)
+      const applicationData = {
+        id: existingApplicationId,
+        user_id: user?.id,
+        preferences: data,
+        selected_tier: data.selected_tier,
+        current_step: 5,
+        status: 'pending',
+        is_complete: true,
+      };
+
       const { error } = await supabase
         .from('membership_applications')
-        .insert({
-          user_id: user?.id,
-          preferences: data,
-          status: 'pending',
-        });
+        .upsert(applicationData);
 
       if (error) throw error;
 
@@ -94,8 +169,39 @@ export default function MembershipApplication() {
     }
   };
 
-  const nextStep = () => {
-    if (step < totalSteps) setStep(step + 1);
+  const nextStep = async () => {
+    if (step >= totalSteps) return;
+
+    // Auto-save progress
+    try {
+      const currentData = watch();
+      const applicationData = {
+        id: existingApplicationId,
+        user_id: user?.id,
+        preferences: currentData,
+        current_step: step + 1,
+        status: 'pending',
+        is_complete: false,
+      };
+
+      const { data, error } = await supabase
+        .from('membership_applications')
+        .upsert(applicationData)
+        .select()
+        .single();
+
+      if (error) throw error;
+      
+      if (!existingApplicationId && data) {
+        setExistingApplicationId(data.id);
+      }
+
+      setStep(step + 1);
+      toast.success('Progress saved');
+    } catch (error) {
+      console.error('Error saving progress:', error);
+      toast.error('Failed to save progress');
+    }
   };
 
   const prevStep = () => {
@@ -137,6 +243,14 @@ export default function MembershipApplication() {
       </div>
     );
   };
+
+  if (isLoadingApplication) {
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen p-4 md:p-8">
@@ -276,6 +390,63 @@ export default function MembershipApplication() {
                       <p className="text-sm text-destructive">{errors.membership_goals.message}</p>
                     )}
                   </div>
+                </div>
+              )}
+
+              {step === 5 && (
+                <div className="space-y-8">
+                  <h3 className="text-xl font-semibold">Choose Your Membership Tier</h3>
+                  <p className="text-muted-foreground">
+                    Select the membership tier that best fits your wine journey
+                  </p>
+
+                  <RadioGroup
+                    value={watch('selected_tier')}
+                    onValueChange={(value) => setValue('selected_tier', value as any)}
+                  >
+                    <div className="grid gap-4">
+                      {tierOptions.map((tier) => (
+                        <Label
+                          key={tier.tier_name}
+                          htmlFor={tier.tier_name}
+                          className="cursor-pointer"
+                        >
+                          <Card className={`transition-all hover:border-primary ${
+                            watch('selected_tier') === tier.tier_name ? 'border-primary ring-2 ring-primary' : ''
+                          }`}>
+                            <CardContent className="flex items-start gap-4 p-6">
+                              <RadioGroupItem value={tier.tier_name} id={tier.tier_name} className="mt-1" />
+                              <div className="flex-1 space-y-2">
+                                <div className="flex items-center justify-between">
+                                  <h4 className="text-lg font-semibold flex items-center gap-2">
+                                    <Wine className="h-5 w-5 text-primary" />
+                                    {tier.display_name}
+                                  </h4>
+                                  <div className="text-right">
+                                    <p className="text-2xl font-bold">${tier.monthly_price}</p>
+                                    <p className="text-xs text-muted-foreground">per month</p>
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                                  <span className="font-semibold text-primary">{tier.monthly_pours}</span>
+                                  <span>pours per month</span>
+                                </div>
+                                {tier.description && (
+                                  <p className="text-sm text-muted-foreground pt-2">
+                                    {tier.description}
+                                  </p>
+                                )}
+                              </div>
+                            </CardContent>
+                          </Card>
+                        </Label>
+                      ))}
+                    </div>
+                  </RadioGroup>
+                  
+                  {errors.selected_tier && (
+                    <p className="text-sm text-destructive">{errors.selected_tier.message}</p>
+                  )}
                 </div>
               )}
 

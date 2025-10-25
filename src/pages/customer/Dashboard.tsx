@@ -6,7 +6,8 @@ import { TierBadge } from '@/components/TierBadge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
-import { QrCode, History, User } from 'lucide-react';
+import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription } from '@/components/ui/alert-dialog';
+import { QrCode, History, User, Clock } from 'lucide-react';
 
 interface CustomerData {
   tier: 'select' | 'premier' | 'elite' | 'household';
@@ -21,6 +22,8 @@ export default function Dashboard() {
   const [customerData, setCustomerData] = useState<CustomerData | null>(null);
   const [loading, setLoading] = useState(true);
   const [firstName, setFirstName] = useState('');
+  const [hasPendingApplication, setHasPendingApplication] = useState(false);
+  const [showApplicationDialog, setShowApplicationDialog] = useState(false);
 
   useEffect(() => {
     fetchCustomerData();
@@ -58,6 +61,19 @@ export default function Dashboard() {
           ...customer,
           total_pours_allocated: tierDef?.monthly_pours || 0,
         });
+      } else {
+        // Check if user has a pending application
+        const { data: application } = await supabase
+          .from('membership_applications')
+          .select('status')
+          .eq('user_id', user.id)
+          .eq('status', 'pending')
+          .maybeSingle();
+
+        if (application) {
+          setHasPendingApplication(true);
+          setShowApplicationDialog(true);
+        }
       }
     } catch (error) {
       console.error('Error fetching customer data:', error);
@@ -74,7 +90,7 @@ export default function Dashboard() {
     );
   }
 
-  if (!customerData) {
+  if (!customerData && !hasPendingApplication) {
     return (
       <div className="flex min-h-screen items-center justify-center p-4">
         <Card className="max-w-md">
@@ -94,6 +110,106 @@ export default function Dashboard() {
           </CardContent>
         </Card>
       </div>
+    );
+  }
+
+  // Show preview dashboard for pending applications
+  if (hasPendingApplication && !customerData) {
+    return (
+      <>
+        <AlertDialog open={showApplicationDialog} onOpenChange={setShowApplicationDialog}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle className="flex items-center gap-2">
+                <Clock className="h-5 w-5 text-primary" />
+                Application Received
+              </AlertDialogTitle>
+              <AlertDialogDescription className="space-y-3 pt-2">
+                <p>
+                  Thank you for applying to our wine club! Your application is currently under review by our staff.
+                </p>
+                <p>
+                  Below is a preview of what your member dashboard will look like once your application is approved. 
+                  All features are currently disabled until your membership is activated.
+                </p>
+                <p className="text-sm font-medium">
+                  We'll notify you as soon as your application has been reviewed.
+                </p>
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <Button onClick={() => setShowApplicationDialog(false)}>View Preview</Button>
+          </AlertDialogContent>
+        </AlertDialog>
+
+        <div className="min-h-screen p-4 md:p-8 opacity-60 pointer-events-none select-none">
+          <div className="max-w-2xl mx-auto space-y-6">
+            <div className="flex justify-between items-center">
+              <h1 className="text-3xl font-serif">Welcome, {firstName}!</h1>
+              <Button variant="ghost" size="sm" className="pointer-events-auto" onClick={signOut}>
+                Sign Out
+              </Button>
+            </div>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Current Tier</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <TierBadge tier="select" className="text-lg px-6 py-2" />
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Pours Remaining</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="text-center">
+                  <p className="text-5xl font-serif text-muted-foreground">
+                    0 / 0
+                  </p>
+                </div>
+                <Progress value={0} className="h-3" />
+                <p className="text-sm text-muted-foreground text-center">
+                  Available once membership is activated
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Member Since</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-xl text-muted-foreground">
+                  Pending activation
+                </p>
+              </CardContent>
+            </Card>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <Button size="lg" className="h-20" disabled>
+                <div className="flex flex-col items-center gap-2">
+                  <QrCode className="h-6 w-6" />
+                  <span>Show QR Code</span>
+                </div>
+              </Button>
+              <Button size="lg" variant="secondary" className="h-20" disabled>
+                <div className="flex flex-col items-center gap-2">
+                  <History className="h-6 w-6" />
+                  <span>View History</span>
+                </div>
+              </Button>
+              <Button size="lg" variant="secondary" className="h-20" disabled>
+                <div className="flex flex-col items-center gap-2">
+                  <User className="h-6 w-6" />
+                  <span>Account</span>
+                </div>
+              </Button>
+            </div>
+          </div>
+        </div>
+      </>
     );
   }
 

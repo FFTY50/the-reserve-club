@@ -3,6 +3,7 @@
 This document explains how to migrate from your development Stripe account to the restaurant's production Stripe account.
 
 ## Prerequisites
+
 - Access to the restaurant's Stripe account
 - Database access to update `tier_definitions` table
 - Access to Lovable Cloud secrets management
@@ -14,28 +15,32 @@ This document explains how to migrate from your development Stripe account to th
 3. Create 4 products:
 
 ### Product 1: Select Membership
+
 - Name: `Select Membership`
 - Description: `4 pours per month`
 - Price: `$47.00` / month (recurring)
-- **Copy the Price ID**: `price_xxxxx`
+- **Copy the Price ID**: `price_1SMFG9ErQ5LGHoZR7KZQrZyJ`
 
 ### Product 2: Premier Membership
+
 - Name: `Premier Membership`
 - Description: `12 pours per month`
 - Price: `$97.00` / month (recurring)
-- **Copy the Price ID**: `price_xxxxx`
+- **Copy the Price ID**: `price_1SMFIDErQ5LGHoZRZof4eHWB`
 
 ### Product 3: Elite Membership
+
 - Name: `Elite Membership`
 - Description: `20 pours per month`
 - Price: `$147.00` / month (recurring)
-- **Copy the Price ID**: `price_xxxxx`
+- **Copy the Price ID**: `price_1SMFIuErQ5LGHoZRAtT8cMZF`
 
 ### Product 4: Household Membership
+
 - Name: `Household Membership`
 - Description: `20 pours per month`
 - Price: `$197.00` / month (recurring)
-- **Copy the Price ID**: `price_xxxxx`
+- **Copy the Price ID**: `price_1SMFJVErQ5LGHoZRV4lzUwFK`
 
 ## Step 2: Update Stripe Secret Keys
 
@@ -51,20 +56,20 @@ Run these SQL commands in Lovable Cloud Database:
 
 ```sql
 -- Update tier_definitions with production Stripe Price IDs
-UPDATE tier_definitions 
-SET stripe_price_id = 'price_PROD_SELECT_ID' 
+UPDATE tier_definitions
+SET stripe_price_id = 'price_PROD_SELECT_ID'
 WHERE tier_name = 'select';
 
-UPDATE tier_definitions 
-SET stripe_price_id = 'price_PROD_PREMIER_ID' 
+UPDATE tier_definitions
+SET stripe_price_id = 'price_PROD_PREMIER_ID'
 WHERE tier_name = 'premier';
 
-UPDATE tier_definitions 
-SET stripe_price_id = 'price_PROD_ELITE_ID' 
+UPDATE tier_definitions
+SET stripe_price_id = 'price_PROD_ELITE_ID'
 WHERE tier_name = 'elite';
 
-UPDATE tier_definitions 
-SET stripe_price_id = 'price_PROD_HOUSEHOLD_ID' 
+UPDATE tier_definitions
+SET stripe_price_id = 'price_PROD_HOUSEHOLD_ID'
 WHERE tier_name = 'household';
 ```
 
@@ -112,6 +117,7 @@ Replace `price_PROD_*_ID` with actual Price IDs from Step 1.
 ## Rollback Plan
 
 If issues occur:
+
 1. Revert `STRIPE_SECRET_KEY` to test key
 2. Revert `tier_definitions.stripe_price_id` to test Price IDs
 3. Delete production webhook endpoint
@@ -136,6 +142,7 @@ After deployment, you need to configure your test Stripe account:
 ### 1. Create Test Products
 
 In your Stripe Dashboard (Test Mode):
+
 - Create the 4 membership products with test prices
 - Copy each Price ID (starts with `price_test_`)
 

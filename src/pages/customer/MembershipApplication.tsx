@@ -144,8 +144,7 @@ export default function MembershipApplication() {
     setIsSubmitting(true);
     try {
       const currentData = watch();
-      const applicationData = {
-        id: existingApplicationId,
+      const applicationData: any = {
         user_id: user?.id!,
         preferences: currentData as any,
         selected_tier: tierName,
@@ -153,6 +152,11 @@ export default function MembershipApplication() {
         status: 'pending' as const,
         is_complete: true,
       };
+
+      // Only include id if updating existing application
+      if (existingApplicationId) {
+        applicationData.id = existingApplicationId;
+      }
 
       const { data: appData, error: appError } = await supabase
         .from('membership_applications')
@@ -188,14 +192,18 @@ export default function MembershipApplication() {
     // Auto-save progress
     try {
       const currentData = watch();
-      const applicationData = {
-        id: existingApplicationId,
+      const applicationData: any = {
         user_id: user?.id,
         preferences: currentData,
         current_step: step + 1,
         status: 'pending',
         is_complete: false,
       };
+
+      // Only include id if updating existing application
+      if (existingApplicationId) {
+        applicationData.id = existingApplicationId;
+      }
 
       const { data, error } = await supabase
         .from('membership_applications')

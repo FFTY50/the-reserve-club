@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription } from '@/components/ui/alert-dialog';
 import { QrCode, History, User, Clock } from 'lucide-react';
+import { QRCodeSVG } from 'qrcode.react';
 
 interface CustomerData {
   tier: 'select' | 'premier' | 'elite' | 'household';
@@ -118,19 +119,34 @@ export default function Dashboard() {
     return (
       <>
         <AlertDialog open={showApplicationDialog} onOpenChange={setShowApplicationDialog}>
-          <AlertDialogContent>
+          <AlertDialogContent className="max-w-md">
             <AlertDialogHeader>
               <AlertDialogTitle className="flex items-center gap-2">
                 <Clock className="h-5 w-5 text-primary" />
                 Application Received
               </AlertDialogTitle>
-              <AlertDialogDescription className="space-y-3 pt-2">
+              <AlertDialogDescription className="space-y-4 pt-2">
                 <p>
                   Thank you for applying to our wine club! Your application is currently under review by our staff.
                 </p>
+                
+                <div className="flex flex-col items-center gap-3 py-4 bg-background rounded-lg border">
+                  <p className="text-sm font-medium text-foreground">Your Member QR Code</p>
+                  <div className="bg-white p-4 rounded-lg">
+                    <QRCodeSVG 
+                      value={user?.id || ''} 
+                      size={180}
+                      level="H"
+                      includeMargin={true}
+                    />
+                  </div>
+                  <p className="text-xs text-muted-foreground text-center px-4">
+                    Staff can scan this code to verify your application
+                  </p>
+                </div>
+
                 <p>
-                  Below is a preview of what your member dashboard will look like once your application is approved. 
-                  All features are currently disabled until your membership is activated.
+                  Below is a preview of what your member dashboard will look like once approved.
                 </p>
                 <p className="text-sm font-medium">
                   We'll notify you as soon as your application has been reviewed.
@@ -188,11 +204,11 @@ export default function Dashboard() {
             </Card>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <Button size="lg" className="h-20" disabled>
-                <div className="flex flex-col items-center gap-2">
+              <Button asChild size="lg" className="h-20 pointer-events-auto opacity-100">
+                <Link to="/qr-code" className="flex flex-col items-center gap-2">
                   <QrCode className="h-6 w-6" />
                   <span>Show QR Code</span>
-                </div>
+                </Link>
               </Button>
               <Button size="lg" variant="secondary" className="h-20" disabled>
                 <div className="flex flex-col items-center gap-2">

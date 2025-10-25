@@ -1,0 +1,310 @@
+import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import * as z from 'zod';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Label } from '@/components/ui/label';
+import { Slider } from '@/components/ui/slider';
+import { Progress } from '@/components/ui/progress';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
+import { toast } from 'react-hot-toast';
+
+const applicationSchema = z.object({
+  // Page 1: Experience Level
+  wine_knowledge: z.number().min(1).max(10),
+  drinking_frequency: z.number().min(1).max(10),
+  food_pairing_importance: z.number().min(1).max(10),
+  
+  // Page 2: Wine Type Preferences
+  red_wine_preference: z.number().min(1).max(10),
+  white_wine_preference: z.number().min(1).max(10),
+  sparkling_preference: z.number().min(1).max(10),
+  full_bodied_preference: z.number().min(1).max(10),
+  
+  // Page 3: Flavor Profiles
+  sweet_vs_dry: z.number().min(1).max(10),
+  fruity_preference: z.number().min(1).max(10),
+  earthy_preference: z.number().min(1).max(10),
+  adventurousness: z.number().min(1).max(10),
+  
+  // Page 4: Goals & Experience
+  region_interest: z.number().min(1).max(10),
+  event_interest: z.number().min(1).max(10),
+  budget_comfort: z.number().min(1).max(10),
+  membership_goals: z.string().min(10).max(500),
+});
+
+type ApplicationFormData = z.infer<typeof applicationSchema>;
+
+export default function MembershipApplication() {
+  const [step, setStep] = useState(1);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const navigate = useNavigate();
+  const { user } = useAuth();
+  
+  const { register, handleSubmit, watch, setValue, formState: { errors } } = useForm<ApplicationFormData>({
+    resolver: zodResolver(applicationSchema),
+    defaultValues: {
+      wine_knowledge: 5,
+      drinking_frequency: 5,
+      food_pairing_importance: 5,
+      red_wine_preference: 5,
+      white_wine_preference: 5,
+      sparkling_preference: 5,
+      full_bodied_preference: 5,
+      sweet_vs_dry: 5,
+      fruity_preference: 5,
+      earthy_preference: 5,
+      adventurousness: 5,
+      region_interest: 5,
+      event_interest: 5,
+      budget_comfort: 5,
+      membership_goals: '',
+    },
+  });
+
+  const totalSteps = 4;
+  const progress = (step / totalSteps) * 100;
+
+  const onSubmit = async (data: ApplicationFormData) => {
+    setIsSubmitting(true);
+    try {
+      // Store application data (we'll create a table for this)
+      const { error } = await supabase
+        .from('membership_applications')
+        .insert({
+          user_id: user?.id,
+          preferences: data,
+          status: 'pending',
+        });
+
+      if (error) throw error;
+
+      toast.success('Application submitted successfully! Staff will review your application.');
+      navigate('/dashboard');
+    } catch (error) {
+      console.error('Error submitting application:', error);
+      toast.error('Failed to submit application. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const nextStep = () => {
+    if (step < totalSteps) setStep(step + 1);
+  };
+
+  const prevStep = () => {
+    if (step > 1) setStep(step - 1);
+  };
+
+  const SliderField = ({ 
+    name, 
+    label, 
+    description 
+  }: { 
+    name: keyof ApplicationFormData; 
+    label: string; 
+    description: string;
+  }) => {
+    const value = watch(name) as number;
+    
+    return (
+      <div className="space-y-4">
+        <div>
+          <Label className="text-base">{label}</Label>
+          <p className="text-sm text-muted-foreground mt-1">{description}</p>
+        </div>
+        <div className="space-y-2">
+          <Slider
+            value={[value]}
+            onValueChange={(vals) => setValue(name, vals[0])}
+            min={1}
+            max={10}
+            step={1}
+            className="py-4"
+          />
+          <div className="flex justify-between text-xs text-muted-foreground">
+            <span>Not at all (1)</span>
+            <span className="text-lg font-semibold text-primary">{value}</span>
+            <span>Extremely (10)</span>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  return (
+    <div className="min-h-screen p-4 md:p-8">
+      <div className="max-w-2xl mx-auto space-y-6">
+        <Button variant="ghost" onClick={() => navigate('/dashboard')}>
+          <ChevronLeft className="h-4 w-4 mr-2" />
+          Back to Dashboard
+        </Button>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-2xl font-serif">Membership Application</CardTitle>
+            <CardDescription>
+              Help us understand your wine preferences (Step {step} of {totalSteps})
+            </CardDescription>
+            <Progress value={progress} className="mt-4" />
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
+              {step === 1 && (
+                <div className="space-y-8">
+                  <h3 className="text-xl font-semibold">Wine Experience Level</h3>
+                  
+                  <SliderField
+                    name="wine_knowledge"
+                    label="How would you rate your overall wine knowledge?"
+                    description="From beginner to sommelier level"
+                  />
+                  
+                  <SliderField
+                    name="drinking_frequency"
+                    label="How often do you enjoy wine?"
+                    description="From rarely to daily"
+                  />
+                  
+                  <SliderField
+                    name="food_pairing_importance"
+                    label="How important is wine pairing with food to you?"
+                    description="From casual drinking to carefully curated pairings"
+                  />
+                </div>
+              )}
+
+              {step === 2 && (
+                <div className="space-y-8">
+                  <h3 className="text-xl font-semibold">Wine Type Preferences</h3>
+                  
+                  <SliderField
+                    name="red_wine_preference"
+                    label="How much do you enjoy red wines?"
+                    description="Cabernet, Merlot, Pinot Noir, etc."
+                  />
+                  
+                  <SliderField
+                    name="white_wine_preference"
+                    label="How much do you enjoy white wines?"
+                    description="Chardonnay, Sauvignon Blanc, Riesling, etc."
+                  />
+                  
+                  <SliderField
+                    name="sparkling_preference"
+                    label="How much do you enjoy sparkling wines?"
+                    description="Champagne, Prosecco, Cava, etc."
+                  />
+                  
+                  <SliderField
+                    name="full_bodied_preference"
+                    label="How much do you enjoy bold, full-bodied wines?"
+                    description="Rich, intense flavors vs light and delicate"
+                  />
+                </div>
+              )}
+
+              {step === 3 && (
+                <div className="space-y-8">
+                  <h3 className="text-xl font-semibold">Flavor Profile Preferences</h3>
+                  
+                  <SliderField
+                    name="sweet_vs_dry"
+                    label="Do you prefer sweet or dry wines?"
+                    description="1 = Very Sweet, 10 = Very Dry"
+                  />
+                  
+                  <SliderField
+                    name="fruity_preference"
+                    label="How much do you enjoy fruity flavors?"
+                    description="Berry, citrus, tropical fruit notes"
+                  />
+                  
+                  <SliderField
+                    name="earthy_preference"
+                    label="How much do you enjoy earthy/mineral notes?"
+                    description="Tobacco, leather, stone, forest floor"
+                  />
+                  
+                  <SliderField
+                    name="adventurousness"
+                    label="How adventurous are you with trying new wines?"
+                    description="Stick to favorites vs always exploring"
+                  />
+                </div>
+              )}
+
+              {step === 4 && (
+                <div className="space-y-8">
+                  <h3 className="text-xl font-semibold">Goals & Membership Experience</h3>
+                  
+                  <SliderField
+                    name="region_interest"
+                    label="Interest in learning about wine regions?"
+                    description="Terroir, geography, and regional characteristics"
+                  />
+                  
+                  <SliderField
+                    name="event_interest"
+                    label="Interest in attending wine tastings and events?"
+                    description="Educational sessions, social gatherings, exclusive tastings"
+                  />
+                  
+                  <SliderField
+                    name="budget_comfort"
+                    label="Comfort level with premium wine prices?"
+                    description="Value-focused to ultra-premium selections"
+                  />
+                  
+                  <div className="space-y-4">
+                    <Label htmlFor="membership_goals" className="text-base">
+                      What are you hoping to get from a wine club membership?
+                    </Label>
+                    <textarea
+                      id="membership_goals"
+                      {...register('membership_goals')}
+                      className="w-full min-h-[120px] rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                      placeholder="Share your goals, interests, or what you'd like to experience..."
+                    />
+                    {errors.membership_goals && (
+                      <p className="text-sm text-destructive">{errors.membership_goals.message}</p>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              <div className="flex justify-between pt-6">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={prevStep}
+                  disabled={step === 1}
+                >
+                  <ChevronLeft className="h-4 w-4 mr-2" />
+                  Previous
+                </Button>
+
+                {step < totalSteps ? (
+                  <Button type="button" onClick={nextStep}>
+                    Next
+                    <ChevronRight className="h-4 w-4 ml-2" />
+                  </Button>
+                ) : (
+                  <Button type="submit" disabled={isSubmitting}>
+                    {isSubmitting ? 'Submitting...' : 'Submit Application'}
+                  </Button>
+                )}
+              </div>
+            </form>
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  );
+}

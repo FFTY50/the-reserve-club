@@ -77,15 +77,20 @@ export default function Dashboard() {
   if (!customerData) {
     return (
       <div className="flex min-h-screen items-center justify-center p-4">
-        <Card>
+        <Card className="max-w-md">
           <CardHeader>
             <CardTitle>No Membership Found</CardTitle>
           </CardHeader>
-          <CardContent>
-            <p className="text-muted-foreground mb-4">
-              You don't have an active membership yet. Please contact staff to sign up.
+          <CardContent className="space-y-4">
+            <p className="text-muted-foreground">
+              You don't have an active membership yet. Apply now to join our exclusive wine club!
             </p>
-            <Button onClick={signOut}>Sign Out</Button>
+            <div className="flex flex-col gap-3">
+              <Button asChild size="lg">
+                <Link to="/apply">Apply for Membership</Link>
+              </Button>
+              <Button variant="outline" onClick={signOut}>Sign Out</Button>
+            </div>
           </CardContent>
         </Card>
       </div>

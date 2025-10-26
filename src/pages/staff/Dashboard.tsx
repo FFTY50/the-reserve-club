@@ -25,19 +25,55 @@ export default function StaffDashboard() {
   const { signOut } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
   const [results, setResults] = useState<CustomerResult[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    // Load recent customers on mount
+    fetchRecentCustomers();
+  }, []);
 
   useEffect(() => {
     const timeoutId = setTimeout(() => {
       if (searchTerm.trim()) {
         handleSearch();
       } else {
-        setResults([]);
+        fetchRecentCustomers();
       }
     }, 300);
 
     return () => clearTimeout(timeoutId);
   }, [searchTerm]);
+
+  const fetchRecentCustomers = async () => {
+    setLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('customers')
+        .select(`
+          id,
+          user_id,
+          tier,
+          status,
+          pours_balance,
+          member_since,
+          profiles!customers_user_id_fkey (
+            first_name,
+            last_name,
+            email
+          )
+        `)
+        .eq('status', 'active')
+        .order('member_since', { ascending: false })
+        .limit(5);
+
+      if (error) throw error;
+      setResults((data as any) || []);
+    } catch (error) {
+      console.error('Error fetching recent customers:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleSearch = async () => {
     setLoading(true);
@@ -50,6 +86,7 @@ export default function StaffDashboard() {
           tier,
           status,
           pours_balance,
+          member_since,
           profiles!customers_user_id_fkey (
             first_name,
             last_name,
@@ -58,7 +95,7 @@ export default function StaffDashboard() {
         `)
         .or(`profiles.first_name.ilike.%${searchTerm}%,profiles.last_name.ilike.%${searchTerm}%,profiles.email.ilike.%${searchTerm}%`)
         .eq('status', 'active')
-        .limit(10);
+        .order('member_since', { ascending: false });
 
       if (error) throw error;
       setResults((data as any) || []);
@@ -77,31 +114,40 @@ export default function StaffDashboard() {
           <Button variant="ghost" size="sm" onClick={signOut}>Sign Out</Button>
         </div>
 
+        <Button asChild size="lg" className="w-full h-20">
+          <Link to="/staff/search" className="flex items-center justify-center gap-3">
+            <QrCode className="h-8 w-8" />
+            <div className="text-center">
+              <div className="font-semibold text-lg">Scan Customer QR Code</div>
+              <div className="text-sm opacity-90">Quick customer lookup</div>
+            </div>
+          </Link>
+        </Button>
+
         <Card>
           <CardHeader>
-            <CardTitle>Customer Lookup</CardTitle>
+            <CardTitle>
+              {searchTerm ? 'Search Results' : 'Recent Members'}
+            </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="flex gap-2">
-              <Input
-                placeholder="Search by name or email..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="flex-1"
-              />
-              <Button asChild variant="outline" size="icon">
-                <Link to="/staff/search">
-                  <QrCode className="h-5 w-5" />
-                </Link>
-              </Button>
-            </div>
+            <Input
+              placeholder="Search by name or email..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full"
+            />
 
             {loading && (
-              <p className="text-sm text-muted-foreground text-center py-4">Searching...</p>
+              <p className="text-sm text-muted-foreground text-center py-4">Loading...</p>
             )}
 
-            {!loading && searchTerm && results.length === 0 && (
+            {!loading && results.length === 0 && searchTerm && (
               <p className="text-sm text-muted-foreground text-center py-4">No customers found</p>
+            )}
+
+            {!loading && results.length === 0 && !searchTerm && (
+              <p className="text-sm text-muted-foreground text-center py-4">No members yet</p>
             )}
 
             <div className="space-y-2">

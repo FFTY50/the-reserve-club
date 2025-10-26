@@ -178,15 +178,15 @@ export default function QRCodePage() {
           </CardHeader>
           <CardContent className="space-y-6">
             <div className="flex justify-center">
-              <div className="p-6 bg-primary rounded-lg">
+              <div className="p-6 bg-card rounded-lg border">
                 <QRCodeSVG
                   id="qr-code-svg"
                   value={qrValue}
                   size={300}
                   level="H"
                   includeMargin={true}
-                  bgColor="#d4af37"
-                  fgColor="#0a0a0a"
+                  bgColor="#ffffff"
+                  fgColor="#000000"
                 />
               </div>
             </div>

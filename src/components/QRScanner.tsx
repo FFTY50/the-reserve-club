@@ -14,7 +14,10 @@ export function QRScanner({ onScan, onClose }: QRScannerProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [error, setError] = useState<string>('');
   const [scanning, setScanning] = useState(false);
+  const [detectedCode, setDetectedCode] = useState<string>('');
+  const [isProcessing, setIsProcessing] = useState(false);
   const streamRef = useRef<MediaStream | null>(null);
+  const scanIntervalRef = useRef<number | null>(null);
 
   useEffect(() => {
     startCamera();
@@ -23,30 +26,52 @@ export function QRScanner({ onScan, onClose }: QRScannerProps) {
 
   const startCamera = async () => {
     try {
+      console.log('Starting camera...');
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: 'environment' }
+        video: { 
+          facingMode: 'environment',
+          width: { ideal: 1280 },
+          height: { ideal: 720 },
+          frameRate: { ideal: 30 }
+        }
       });
       streamRef.current = stream;
       
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
-        videoRef.current.play();
+        await videoRef.current.play();
+        console.log('Camera started successfully');
         setScanning(true);
-        scanFrame();
+        startContinuousScanning();
       }
     } catch (err) {
+      console.error('Camera error:', err);
       setError('Camera access denied. Please enable camera permissions.');
     }
   };
 
+  const startContinuousScanning = () => {
+    scanIntervalRef.current = window.setInterval(() => {
+      scanFrame();
+    }, 100); // Scan every 100ms
+  };
+
+  const stopContinuousScanning = () => {
+    if (scanIntervalRef.current) {
+      clearInterval(scanIntervalRef.current);
+      scanIntervalRef.current = null;
+    }
+  };
+
   const stopCamera = () => {
+    stopContinuousScanning();
     if (streamRef.current) {
       streamRef.current.getTracks().forEach(track => track.stop());
     }
   };
 
   const scanFrame = () => {
-    if (!videoRef.current || !canvasRef.current || !scanning) return;
+    if (!videoRef.current || !canvasRef.current || !scanning || isProcessing) return;
 
     const video = videoRef.current;
     const canvas = canvasRef.current;
@@ -58,17 +83,62 @@ export function QRScanner({ onScan, onClose }: QRScannerProps) {
       ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
       const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-      const code = jsQR(imageData.data, imageData.width, imageData.height);
+      const code = jsQR(imageData.data, imageData.width, imageData.height, {
+        inversionAttempts: "attemptBoth",
+      });
 
-      if (code) {
-        setScanning(false);
-        stopCamera();
-        onScan(code.data);
-        return;
+      if (code && code.data) {
+        console.log('QR Code detected:', code.data.substring(0, 20) + '...');
+        setDetectedCode(code.data);
       }
     }
+  };
 
-    requestAnimationFrame(scanFrame);
+  const handleManualCapture = () => {
+    if (isProcessing) return;
+    
+    console.log('Manual capture triggered');
+    setIsProcessing(true);
+    
+    if (!videoRef.current || !canvasRef.current) {
+      setIsProcessing(false);
+      return;
+    }
+
+    const video = videoRef.current;
+    const canvas = canvasRef.current;
+    const ctx = canvas.getContext('2d');
+
+    if (video.readyState === video.HAVE_ENOUGH_DATA && ctx) {
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      
+      // Try multiple times with different settings
+      for (let attempt = 0; attempt < 3; attempt++) {
+        const code = jsQR(imageData.data, imageData.width, imageData.height, {
+          inversionAttempts: "attemptBoth",
+        });
+
+        if (code && code.data) {
+          console.log('QR Code successfully decoded:', code.data);
+          stopContinuousScanning();
+          setScanning(false);
+          stopCamera();
+          onScan(code.data);
+          return;
+        }
+      }
+      
+      console.log('Failed to decode QR code from captured frame');
+      setError('Could not read QR code. Please try again or adjust lighting.');
+      setIsProcessing(false);
+      setTimeout(() => setError(''), 3000);
+    } else {
+      setIsProcessing(false);
+    }
   };
 
   return (
@@ -84,29 +154,62 @@ export function QRScanner({ onScan, onClose }: QRScannerProps) {
           </Button>
         </div>
 
-        {error ? (
+        {error && !scanning ? (
           <div className="text-center py-8 space-y-4">
             <p className="text-destructive">{error}</p>
             <Button onClick={startCamera}>Try Again</Button>
           </div>
         ) : (
-          <div className="relative aspect-square bg-black rounded-lg overflow-hidden">
-            <video
-              ref={videoRef}
-              className="w-full h-full object-cover"
-              playsInline
-            />
-            <canvas ref={canvasRef} className="hidden" />
-            
-            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-              <div className="w-64 h-64 border-4 border-primary rounded-lg" />
-            </div>
-          </div>
-        )}
+          <>
+            <div className="relative aspect-square bg-black rounded-lg overflow-hidden">
+              <video
+                ref={videoRef}
+                className="w-full h-full object-cover"
+                playsInline
+              />
+              <canvas ref={canvasRef} className="hidden" />
+              
+              <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                <div className={`w-64 h-64 border-4 rounded-lg transition-colors ${
+                  detectedCode ? 'border-green-500' : 'border-primary'
+                }`} />
+              </div>
 
-        <p className="text-sm text-muted-foreground text-center">
-          Position the QR code within the frame
-        </p>
+              {detectedCode && (
+                <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-green-500 text-white px-4 py-2 rounded-lg text-sm font-medium">
+                  QR Code Detected!
+                </div>
+              )}
+            </div>
+
+            <div className="space-y-4">
+              <Button 
+                onClick={handleManualCapture}
+                disabled={isProcessing}
+                className="w-full"
+                size="lg"
+              >
+                {isProcessing ? 'Processing...' : 'Capture & Scan QR Code'}
+              </Button>
+
+              {error && (
+                <p className="text-sm text-destructive text-center">{error}</p>
+              )}
+
+              <p className="text-sm text-muted-foreground text-center">
+                {detectedCode 
+                  ? 'QR code detected! Click "Capture & Scan" to verify.'
+                  : 'Position the QR code within the frame and click the button'}
+              </p>
+
+              {detectedCode && (
+                <p className="text-xs text-muted-foreground text-center font-mono">
+                  Token: {detectedCode.substring(0, 8)}...{detectedCode.substring(detectedCode.length - 8)}
+                </p>
+              )}
+            </div>
+          </>
+        )}
       </CardContent>
     </Card>
   );

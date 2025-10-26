@@ -46,6 +46,8 @@ export default function CustomerDetail() {
   const [membership, setMembership] = useState<MembershipData | null>(null);
   const [pours, setPours] = useState<PourRecord[]>([]);
   const [preferences, setPreferences] = useState<any>(null);
+  const [profileSummary, setProfileSummary] = useState<string | null>(null);
+  const [summaryLoading, setSummaryLoading] = useState(false);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -142,11 +144,35 @@ export default function CustomerDetail() {
 
       if (appData?.preferences) {
         setPreferences(appData.preferences);
+        // Generate AI summary
+        generateProfileSummary(appData.preferences);
       }
     } catch (error) {
       console.error('Error fetching customer data:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const generateProfileSummary = async (prefs: any) => {
+    if (!prefs) return;
+    
+    setSummaryLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('generate-profile-summary', {
+        body: { preferences: prefs }
+      });
+
+      if (error) throw error;
+      
+      if (data?.summary) {
+        setProfileSummary(data.summary);
+      }
+    } catch (error) {
+      console.error('Error generating profile summary:', error);
+      setProfileSummary(null);
+    } finally {
+      setSummaryLoading(false);
     }
   };
 
@@ -266,37 +292,23 @@ export default function CustomerDetail() {
           </CardContent>
         </Card>
 
-        {/* Preferences */}
+        {/* Customer Profile Summary */}
         {preferences && (
           <Card>
             <CardHeader>
-              <CardTitle>Wine Preferences</CardTitle>
+              <CardTitle>Customer Profile</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="space-y-3">
-                {preferences.wineTypes && (
-                  <div>
-                    <p className="text-sm font-semibold text-muted-foreground">Preferred Wine Types</p>
-                    <div className="flex flex-wrap gap-2 mt-1">
-                      {preferences.wineTypes.map((type: string) => (
-                        <Badge key={type} variant="secondary">{type}</Badge>
-                      ))}
-                    </div>
-                  </div>
-                )}
-                {preferences.tastingNotes && (
-                  <div>
-                    <p className="text-sm font-semibold text-muted-foreground">Tasting Notes Preference</p>
-                    <p className="mt-1">{preferences.tastingNotes}</p>
-                  </div>
-                )}
-                {preferences.additionalNotes && (
-                  <div>
-                    <p className="text-sm font-semibold text-muted-foreground">Additional Notes</p>
-                    <p className="mt-1">{preferences.additionalNotes}</p>
-                  </div>
-                )}
-              </div>
+              {summaryLoading ? (
+                <div className="flex items-center gap-2 text-muted-foreground">
+                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent"></div>
+                  <p className="text-sm">Generating profile summary...</p>
+                </div>
+              ) : profileSummary ? (
+                <p className="text-foreground leading-relaxed">{profileSummary}</p>
+              ) : (
+                <p className="text-muted-foreground italic">No profile summary available</p>
+              )}
             </CardContent>
           </Card>
         )}

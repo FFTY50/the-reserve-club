@@ -1,31 +1,47 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
-import { supabase } from '@/integrations/supabase/client';
+import { useNavigate, Link } from 'react-router-dom';
+import { QRScanner } from '@/components/QRScanner';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { Card, CardContent } from '@/components/ui/card';
-import { TierBadge } from '@/components/TierBadge';
-import { ArrowLeft } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import { ArrowLeft, Loader2 } from 'lucide-react';
+import { toast } from 'sonner';
 
 export default function StaffSearch() {
-  const [searchTerm, setSearchTerm] = useState('');
-  const [results, setResults] = useState<any[]>([]);
-  const [loading, setLoading] = useState(false);
+  const navigate = useNavigate();
+  const [showScanner, setShowScanner] = useState(true);
+  const [manualCode, setManualCode] = useState('');
+  const [verifying, setVerifying] = useState(false);
 
-  const handleSearch = async () => {
-    if (!searchTerm.trim()) return;
-    setLoading(true);
+  const verifyToken = async (token: string) => {
+    setVerifying(true);
     try {
-      const { data } = await supabase
-        .from('profiles')
-        .select('id, first_name, last_name, email')
-        .or(`first_name.ilike.%${searchTerm}%,last_name.ilike.%${searchTerm}%,email.ilike.%${searchTerm}%`)
-        .limit(10);
-      setResults(data || []);
+      const { data, error } = await supabase.functions.invoke('verify-qr-token', {
+        body: { token }
+      });
+
+      if (error) throw error;
+
+      if (data.valid) {
+        toast.success(`Found: ${data.customer.first_name} ${data.customer.last_name}`);
+        navigate(`/staff/customers/${data.customer.id}/add-pour`, {
+          state: { customer: data.customer }
+        });
+      } else {
+        toast.error('Invalid or expired QR code');
+      }
     } catch (error) {
-      console.error('Search error:', error);
+      toast.error('Failed to verify QR code');
     } finally {
-      setLoading(false);
+      setVerifying(false);
+    }
+  };
+
+  const handleManualSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (manualCode.trim()) {
+      verifyToken(manualCode.trim());
     }
   };
 
@@ -33,24 +49,68 @@ export default function StaffSearch() {
     <div className="min-h-screen p-4 md:p-8">
       <div className="max-w-2xl mx-auto space-y-6">
         <Button asChild variant="ghost">
-          <Link to="/staff/dashboard"><ArrowLeft className="mr-2 h-4 w-4" />Back</Link>
+          <Link to="/staff/dashboard">
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            Back to Dashboard
+          </Link>
         </Button>
-        <div className="flex gap-2">
-          <Input placeholder="Search by name or email..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} onKeyPress={(e) => e.key === 'Enter' && handleSearch()} />
-          <Button onClick={handleSearch} disabled={loading}>Search</Button>
-        </div>
-        <div className="space-y-2">
-          {results.map((result) => (
-            <Card key={result.id}>
-              <CardContent className="p-4">
-                <Link to={`/staff/customers/${result.id}`} className="block hover:opacity-80">
-                  <p className="font-semibold">{result.first_name} {result.last_name}</p>
-                  <p className="text-sm text-muted-foreground">{result.email}</p>
-                </Link>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+
+        {showScanner ? (
+          <>
+            <QRScanner
+              onScan={verifyToken}
+              onClose={() => navigate('/staff/dashboard')}
+            />
+            
+            <div className="text-center">
+              <Button
+                variant="outline"
+                onClick={() => setShowScanner(false)}
+              >
+                Enter Code Manually
+              </Button>
+            </div>
+          </>
+        ) : (
+          <Card>
+            <CardHeader>
+              <CardTitle>Enter QR Code Manually</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <form onSubmit={handleManualSubmit} className="space-y-4">
+                <Input
+                  placeholder="Paste QR code here..."
+                  value={manualCode}
+                  onChange={(e) => setManualCode(e.target.value)}
+                  disabled={verifying}
+                />
+                <div className="flex gap-2">
+                  <Button
+                    type="submit"
+                    disabled={!manualCode.trim() || verifying}
+                    className="flex-1"
+                  >
+                    {verifying ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Verifying...
+                      </>
+                    ) : (
+                      'Verify Code'
+                    )}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setShowScanner(true)}
+                  >
+                    Use Camera
+                  </Button>
+                </div>
+              </form>
+            </CardContent>
+          </Card>
+        )}
       </div>
     </div>
   );

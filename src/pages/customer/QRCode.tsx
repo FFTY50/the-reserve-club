@@ -22,10 +22,34 @@ export default function QRCodePage() {
   const [customerData, setCustomerData] = useState<CustomerData | null>(null);
   const [loading, setLoading] = useState(true);
   const [hasPendingApplication, setHasPendingApplication] = useState(false);
+  const [qrToken, setQrToken] = useState<string>('');
+  const [tokenExpiry, setTokenExpiry] = useState<Date | null>(null);
 
   useEffect(() => {
     fetchCustomerData();
   }, [user]);
+
+  useEffect(() => {
+    if (customerData && !hasPendingApplication) {
+      generateToken();
+      // Refresh token every 8 minutes (before 10 minute expiry)
+      const interval = setInterval(generateToken, 8 * 60 * 1000);
+      return () => clearInterval(interval);
+    }
+  }, [customerData, hasPendingApplication]);
+
+  const generateToken = async () => {
+    try {
+      const { data, error } = await supabase.functions.invoke('generate-qr-token');
+      
+      if (error) throw error;
+      
+      setQrToken(data.token);
+      setTokenExpiry(new Date(data.expires_at));
+    } catch (error) {
+      console.error('Error generating token');
+    }
+  };
 
   const fetchCustomerData = async () => {
     if (!user) return;
@@ -67,7 +91,7 @@ export default function QRCodePage() {
         }
       }
     } catch (error) {
-      console.error('Error fetching customer data:', error);
+      console.error('Error fetching customer data');
     } finally {
       setLoading(false);
     }
@@ -129,7 +153,7 @@ export default function QRCodePage() {
     );
   }
 
-  const qrValue = hasPendingApplication ? user?.id || '' : `${customerData.id}|${customerData.activation_key}`;
+  const qrValue = hasPendingApplication ? user?.id || '' : qrToken;
 
   return (
     <div className="min-h-screen p-4 md:p-8">
@@ -167,12 +191,19 @@ export default function QRCodePage() {
               </div>
             </div>
 
-            <p className="text-center text-muted-foreground">
-              {hasPendingApplication 
-                ? 'Show this to staff to verify your pending application'
-                : 'Show this to staff for quick lookup'
-              }
-            </p>
+            <div className="text-center space-y-1">
+              <p className="text-muted-foreground">
+                {hasPendingApplication 
+                  ? 'Show this to staff to verify your pending application'
+                  : 'Show this to staff for quick lookup'
+                }
+              </p>
+              {!hasPendingApplication && tokenExpiry && (
+                <p className="text-xs text-muted-foreground">
+                  Token refreshes automatically every 8 minutes
+                </p>
+              )}
+            </div>
 
             <div className="flex gap-4 justify-center">
               <Button onClick={handleDownload} variant="secondary">

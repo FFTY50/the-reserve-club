@@ -28,7 +28,7 @@ export type Database = {
           tier: Database["public"]["Enums"]["customer_tier"]
           total_pours_lifetime: number
           updated_at: string | null
-          user_id: string | null
+          user_id: string
         }
         Insert: {
           activation_key?: string | null
@@ -43,7 +43,7 @@ export type Database = {
           tier?: Database["public"]["Enums"]["customer_tier"]
           total_pours_lifetime?: number
           updated_at?: string | null
-          user_id?: string | null
+          user_id: string
         }
         Update: {
           activation_key?: string | null
@@ -58,7 +58,7 @@ export type Database = {
           tier?: Database["public"]["Enums"]["customer_tier"]
           total_pours_lifetime?: number
           updated_at?: string | null
-          user_id?: string | null
+          user_id?: string
         }
         Relationships: [
           {

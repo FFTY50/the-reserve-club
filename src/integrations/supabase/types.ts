@@ -288,6 +288,7 @@ export type Database = {
         Row: {
           description: string | null
           display_name: string
+          features: Json | null
           id: string
           is_active: boolean | null
           monthly_pours: number
@@ -298,6 +299,7 @@ export type Database = {
         Insert: {
           description?: string | null
           display_name: string
+          features?: Json | null
           id?: string
           is_active?: boolean | null
           monthly_pours: number
@@ -308,6 +310,7 @@ export type Database = {
         Update: {
           description?: string | null
           display_name?: string
+          features?: Json | null
           id?: string
           is_active?: boolean | null
           monthly_pours?: number

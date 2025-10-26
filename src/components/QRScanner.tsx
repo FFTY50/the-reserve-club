@@ -112,27 +112,65 @@ export function QRScanner({ onScan, onClose }: QRScannerProps) {
     if (video.readyState === video.HAVE_ENOUGH_DATA && ctx) {
       canvas.width = video.videoWidth;
       canvas.height = video.videoHeight;
-      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
       
-      // Try multiple times with different settings
-      for (let attempt = 0; attempt < 3; attempt++) {
-        const code = jsQR(imageData.data, imageData.width, imageData.height, {
-          inversionAttempts: "attemptBoth",
-        });
+      // Draw the image multiple times and try to decode
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      
+      // Try with original image
+      let imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      let code = jsQR(imageData.data, imageData.width, imageData.height, {
+        inversionAttempts: "attemptBoth",
+      });
 
-        if (code && code.data) {
-          console.log('QR Code successfully decoded:', code.data);
-          stopContinuousScanning();
-          setScanning(false);
-          stopCamera();
-          onScan(code.data);
-          return;
-        }
+      if (code && code.data) {
+        console.log('QR Code successfully decoded:', code.data);
+        stopContinuousScanning();
+        setScanning(false);
+        stopCamera();
+        onScan(code.data);
+        return;
+      }
+
+      // Try with increased contrast and brightness
+      ctx.filter = 'contrast(2) brightness(1.2)';
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      code = jsQR(imageData.data, imageData.width, imageData.height, {
+        inversionAttempts: "attemptBoth",
+      });
+
+      if (code && code.data) {
+        console.log('QR Code decoded with contrast adjustment:', code.data);
+        stopContinuousScanning();
+        setScanning(false);
+        stopCamera();
+        onScan(code.data);
+        return;
+      }
+
+      // Try scanning center region only
+      const centerX = Math.floor(canvas.width / 4);
+      const centerY = Math.floor(canvas.height / 4);
+      const centerWidth = Math.floor(canvas.width / 2);
+      const centerHeight = Math.floor(canvas.height / 2);
+      
+      ctx.filter = 'none';
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      imageData = ctx.getImageData(centerX, centerY, centerWidth, centerHeight);
+      code = jsQR(imageData.data, imageData.width, imageData.height, {
+        inversionAttempts: "attemptBoth",
+      });
+
+      if (code && code.data) {
+        console.log('QR Code decoded from center region:', code.data);
+        stopContinuousScanning();
+        setScanning(false);
+        stopCamera();
+        onScan(code.data);
+        return;
       }
       
-      console.log('Failed to decode QR code from captured frame');
+      console.log('Failed to decode QR code after all attempts');
       setError('Could not read QR code. Please try again or adjust lighting.');
       setIsProcessing(false);
       setTimeout(() => setError(''), 3000);

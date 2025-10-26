@@ -59,7 +59,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (error) throw error;
       setUserRole(data.role as 'customer' | 'staff');
     } catch (error) {
-      console.error('Error fetching user role:', error);
       setUserRole(null);
     } finally {
       setLoading(false);

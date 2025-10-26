@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import Stripe from 'https://esm.sh/stripe@14.21.0';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
+import { z } from 'https://deno.land/x/zod@v3.22.4/mod.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -52,21 +53,41 @@ serve(async (req) => {
 
     console.log('Processing webhook event:', event.type);
 
+    // Define validation schemas
+    const metadataSchema = z.object({
+      applicationId: z.string().uuid('Invalid application ID format'),
+      userId: z.string().uuid('Invalid user ID format'),
+      tierName: z.enum(['select', 'premier', 'elite', 'household'], {
+        errorMap: () => ({ message: 'Invalid tier name' })
+      })
+    });
+
+    const stripeIdSchema = z.string().min(1, 'Invalid Stripe ID');
+
     switch (event.type) {
       case 'checkout.session.completed': {
         const session = event.data.object as Stripe.Checkout.Session;
         console.log('Checkout completed:', session.id);
 
-        const { applicationId, userId, tierName } = session.metadata || {};
-
-        if (!applicationId || !userId || !tierName) {
-          console.error('Missing metadata in session:', session.metadata);
-          throw new Error('Missing required metadata');
+        // Validate metadata
+        const metadataResult = metadataSchema.safeParse(session.metadata);
+        if (!metadataResult.success) {
+          console.error('Invalid metadata:', metadataResult.error.format());
+          throw new Error(`Invalid metadata: ${metadataResult.error.issues[0].message}`);
         }
 
-        // Retrieve subscription ID from session
-        const subscriptionId = session.subscription as string;
-        const customerId = session.customer as string;
+        const { applicationId, userId, tierName } = metadataResult.data;
+
+        // Validate and retrieve subscription ID from session
+        const subscriptionIdResult = stripeIdSchema.safeParse(session.subscription);
+        const customerIdResult = stripeIdSchema.safeParse(session.customer);
+        
+        if (!subscriptionIdResult.success || !customerIdResult.success) {
+          throw new Error('Invalid Stripe subscription or customer ID');
+        }
+        
+        const subscriptionId = subscriptionIdResult.data;
+        const customerId = customerIdResult.data;
 
         // Fetch tier definition for monthly_pours and monthly_price
         const { data: tier, error: tierError } = await supabase
@@ -142,6 +163,14 @@ serve(async (req) => {
 
       case 'customer.subscription.deleted': {
         const subscription = event.data.object as Stripe.Subscription;
+        
+        // Validate subscription ID
+        const subIdResult = stripeIdSchema.safeParse(subscription.id);
+        if (!subIdResult.success) {
+          console.error('Invalid subscription ID');
+          break;
+        }
+        
         console.log('Subscription cancelled:', subscription.id);
 
         // Find membership by stripe_subscription_id
@@ -184,7 +213,14 @@ serve(async (req) => {
         const invoice = event.data.object as Stripe.Invoice;
         console.log('Payment succeeded for invoice:', invoice.id);
 
-        const subscriptionId = invoice.subscription as string;
+        // Validate subscription ID
+        const subIdResult = stripeIdSchema.safeParse(invoice.subscription);
+        if (!subIdResult.success) {
+          console.error('Invalid subscription ID in invoice');
+          break;
+        }
+        
+        const subscriptionId = subIdResult.data;
 
         // Find membership
         const { data: membership, error: fetchError } = await supabase

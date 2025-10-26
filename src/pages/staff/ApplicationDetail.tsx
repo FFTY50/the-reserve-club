@@ -77,7 +77,6 @@ export default function ApplicationDetail() {
         setTierInfo(tierData);
       }
     } catch (error) {
-      console.error('Error fetching application:', error);
       toast({
         title: 'Error',
         description: 'Failed to load application details',
@@ -150,7 +149,6 @@ export default function ApplicationDetail() {
 
       navigate('/staff/applications');
     } catch (error) {
-      console.error('Error approving application:', error);
       toast({
         title: 'Error',
         description: 'Failed to approve application',
@@ -186,7 +184,6 @@ export default function ApplicationDetail() {
 
       navigate('/staff/applications');
     } catch (error) {
-      console.error('Error rejecting application:', error);
       toast({
         title: 'Error',
         description: 'Failed to reject application',

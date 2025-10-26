@@ -75,7 +75,7 @@ serve(async (req) => {
       }
     );
   } catch (error) {
-    console.error('Token generation error:', error);
+    console.error('Token generation error');
     return new Response(
       JSON.stringify({ error: 'Internal server error' }),
       {

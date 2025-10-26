@@ -15,8 +15,41 @@ serve(async (req) => {
   try {
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
+      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
+      {
+        global: {
+          headers: { Authorization: req.headers.get('Authorization')! }
+        }
+      }
     );
+
+    // Verify authentication and staff role
+    const { data: { user }, error: authError } = await supabaseClient.auth.getUser();
+    if (authError || !user) {
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Verify staff role using service role client
+    const supabaseAdmin = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    );
+
+    const { data: roleData, error: roleError } = await supabaseAdmin
+      .from('user_roles')
+      .select('role')
+      .eq('user_id', user.id)
+      .single();
+
+    if (roleError || !roleData || roleData.role !== 'staff') {
+      return new Response(
+        JSON.stringify({ error: 'Forbidden: Staff access required' }),
+        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
     const { token } = await req.json();
 
@@ -35,8 +68,8 @@ serve(async (req) => {
     try {
       const { payload } = await jose.jwtVerify(token, secret);
 
-      // Verify customer still exists and is active
-      const { data: customer, error: customerError } = await supabaseClient
+      // Verify customer still exists and is active (use admin client)
+      const { data: customer, error: customerError } = await supabaseAdmin
         .from('customers')
         .select('id, tier, status, user_id, pours_balance')
         .eq('id', payload.customer_id as string)
@@ -51,7 +84,7 @@ serve(async (req) => {
       }
 
       // Get profile data
-      const { data: profile } = await supabaseClient
+      const { data: profile } = await supabaseAdmin
         .from('profiles')
         .select('first_name, last_name')
         .eq('id', customer.user_id)
@@ -73,7 +106,7 @@ serve(async (req) => {
         }
       );
     } catch (jwtError) {
-      console.error('JWT verification failed:', jwtError);
+      console.error('JWT verification failed');
       return new Response(
         JSON.stringify({ error: 'Invalid or expired token' }),
         {
@@ -83,7 +116,7 @@ serve(async (req) => {
       );
     }
   } catch (error) {
-    console.error('Token verification error:', error);
+    console.error('Token verification error');
     return new Response(
       JSON.stringify({ error: 'Internal server error' }),
       {

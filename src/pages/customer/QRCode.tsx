@@ -47,7 +47,7 @@ export default function QRCodePage() {
       setQrToken(data.token);
       setTokenExpiry(new Date(data.expires_at));
     } catch (error) {
-      console.error('Error generating token');
+      // Token generation failed - will retry on next interval
     }
   };
 
@@ -91,7 +91,7 @@ export default function QRCodePage() {
         }
       }
     } catch (error) {
-      console.error('Error fetching customer data');
+      // Error fetching customer data
     } finally {
       setLoading(false);
     }

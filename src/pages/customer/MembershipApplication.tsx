@@ -15,30 +15,14 @@ import { toast } from 'react-hot-toast';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 
 const applicationSchema = z.object({
-  // Page 1: Experience Level
+  // Survey questions
   wine_knowledge: z.number().min(1).max(10),
   drinking_frequency: z.number().min(1).max(10),
-  food_pairing_importance: z.number().min(1).max(10),
-  
-  // Page 2: Wine Type Preferences
   red_wine_preference: z.number().min(1).max(10),
   white_wine_preference: z.number().min(1).max(10),
-  sparkling_preference: z.number().min(1).max(10),
-  full_bodied_preference: z.number().min(1).max(10),
-  
-  // Page 3: Flavor Profiles
-  sweet_vs_dry: z.number().min(1).max(10),
-  fruity_preference: z.number().min(1).max(10),
-  earthy_preference: z.number().min(1).max(10),
   adventurousness: z.number().min(1).max(10),
   
-  // Page 4: Goals & Experience
-  region_interest: z.number().min(1).max(10),
-  event_interest: z.number().min(1).max(10),
-  budget_comfort: z.number().min(1).max(10),
-  membership_goals: z.string().min(10).max(500),
-  
-  // Page 5: Tier Selection
+  // Tier Selection
   selected_tier: z.enum(['select', 'premier', 'elite', 'household']),
 });
 
@@ -66,24 +50,14 @@ export default function MembershipApplication() {
     defaultValues: {
       wine_knowledge: 5,
       drinking_frequency: 5,
-      food_pairing_importance: 5,
       red_wine_preference: 5,
       white_wine_preference: 5,
-      sparkling_preference: 5,
-      full_bodied_preference: 5,
-      sweet_vs_dry: 5,
-      fruity_preference: 5,
-      earthy_preference: 5,
       adventurousness: 5,
-      region_interest: 5,
-      event_interest: 5,
-      budget_comfort: 5,
-      membership_goals: '',
       selected_tier: 'select',
     },
   });
 
-  const totalSteps = 5;
+  const totalSteps = 2;
   const progress = (step / totalSteps) * 100;
 
   // Load tier options
@@ -128,7 +102,7 @@ export default function MembershipApplication() {
             setValue('selected_tier', data.selected_tier);
           }
           
-          toast.success('Resuming your application from where you left off');
+          toast.success('Resuming your survey from where you left off');
         }
       } catch (error) {
         console.error('Error checking existing application:', error);
@@ -148,7 +122,7 @@ export default function MembershipApplication() {
         user_id: user?.id!,
         preferences: currentData as any,
         selected_tier: tierName,
-        current_step: 5,
+        current_step: 2,
         status: 'pending' as const,
         is_complete: true,
       };
@@ -283,41 +257,31 @@ export default function MembershipApplication() {
 
         <Card>
           <CardHeader>
-            <CardTitle className="text-2xl font-serif">Membership Application</CardTitle>
+            <CardTitle className="text-2xl font-serif">Wine Preference Survey</CardTitle>
             <CardDescription>
-              Help us understand your wine preferences (Step {step} of {totalSteps})
+              Tell us about your wine preferences (Step {step} of {totalSteps})
             </CardDescription>
             <Progress value={progress} className="mt-4" />
           </CardHeader>
           <CardContent>
             <div className="space-y-8">
               {step === 1 && (
-                <div className="space-y-8">
-                  <h3 className="text-xl font-semibold">Wine Experience Level</h3>
+                <div className="space-y-6">
+                  <p className="text-muted-foreground">
+                    Help us understand your wine preferences so we can tailor your experience.
+                  </p>
                   
                   <SliderField
                     name="wine_knowledge"
-                    label="How would you rate your overall wine knowledge?"
-                    description="From beginner to sommelier level"
+                    label="How would you rate your wine knowledge?"
+                    description="From beginner to expert"
                   />
                   
                   <SliderField
                     name="drinking_frequency"
                     label="How often do you enjoy wine?"
-                    description="From rarely to daily"
+                    description="From occasionally to regularly"
                   />
-                  
-                  <SliderField
-                    name="food_pairing_importance"
-                    label="How important is wine pairing with food to you?"
-                    description="From casual drinking to carefully curated pairings"
-                  />
-                </div>
-              )}
-
-              {step === 2 && (
-                <div className="space-y-8">
-                  <h3 className="text-xl font-semibold">Wine Type Preferences</h3>
                   
                   <SliderField
                     name="red_wine_preference"
@@ -332,42 +296,6 @@ export default function MembershipApplication() {
                   />
                   
                   <SliderField
-                    name="sparkling_preference"
-                    label="How much do you enjoy sparkling wines?"
-                    description="Champagne, Prosecco, Cava, etc."
-                  />
-                  
-                  <SliderField
-                    name="full_bodied_preference"
-                    label="How much do you enjoy bold, full-bodied wines?"
-                    description="Rich, intense flavors vs light and delicate"
-                  />
-                </div>
-              )}
-
-              {step === 3 && (
-                <div className="space-y-8">
-                  <h3 className="text-xl font-semibold">Flavor Profile Preferences</h3>
-                  
-                  <SliderField
-                    name="sweet_vs_dry"
-                    label="Do you prefer sweet or dry wines?"
-                    description="1 = Very Sweet, 10 = Very Dry"
-                  />
-                  
-                  <SliderField
-                    name="fruity_preference"
-                    label="How much do you enjoy fruity flavors?"
-                    description="Berry, citrus, tropical fruit notes"
-                  />
-                  
-                  <SliderField
-                    name="earthy_preference"
-                    label="How much do you enjoy earthy/mineral notes?"
-                    description="Tobacco, leather, stone, forest floor"
-                  />
-                  
-                  <SliderField
                     name="adventurousness"
                     label="How adventurous are you with trying new wines?"
                     description="Stick to favorites vs always exploring"
@@ -375,51 +303,14 @@ export default function MembershipApplication() {
                 </div>
               )}
 
-              {step === 4 && (
-                <div className="space-y-8">
-                  <h3 className="text-xl font-semibold">Goals & Membership Experience</h3>
-                  
-                  <SliderField
-                    name="region_interest"
-                    label="Interest in learning about wine regions?"
-                    description="Terroir, geography, and regional characteristics"
-                  />
-                  
-                  <SliderField
-                    name="event_interest"
-                    label="Interest in attending wine tastings and events?"
-                    description="Educational sessions, social gatherings, exclusive tastings"
-                  />
-                  
-                  <SliderField
-                    name="budget_comfort"
-                    label="Comfort level with premium wine prices?"
-                    description="Value-focused to ultra-premium selections"
-                  />
-                  
-                  <div className="space-y-4">
-                    <Label htmlFor="membership_goals" className="text-base">
-                      What are you hoping to get from a wine club membership?
-                    </Label>
-                    <textarea
-                      id="membership_goals"
-                      {...register('membership_goals')}
-                      className="w-full min-h-[120px] rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                      placeholder="Share your goals, interests, or what you'd like to experience..."
-                    />
-                    {errors.membership_goals && (
-                      <p className="text-sm text-destructive">{errors.membership_goals.message}</p>
-                    )}
+              {step === 2 && (
+                <div className="space-y-6">
+                  <div>
+                    <h3 className="text-xl font-semibold">Choose Your Membership</h3>
+                    <p className="text-muted-foreground mt-2">
+                      Select a membership level to complete your signup
+                    </p>
                   </div>
-                </div>
-              )}
-
-              {step === 5 && (
-                <div className="space-y-8">
-                  <h3 className="text-xl font-semibold">Choose Your Membership Tier</h3>
-                  <p className="text-muted-foreground">
-                    Select a tier below to continue to secure payment
-                  </p>
 
                   {isSubmitting && (
                     <div className="absolute inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center z-50 rounded-lg">
@@ -482,7 +373,7 @@ export default function MembershipApplication() {
                   </Button>
 
                   <Button type="button" onClick={nextStep}>
-                    Next
+                    Continue to Membership Selection
                     <ChevronRight className="h-4 w-4 ml-2" />
                   </Button>
                 </div>

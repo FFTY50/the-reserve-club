@@ -3,5 +3,14 @@ project_id = "qqacjsczbrzerilgapqa"
 [functions.create-checkout]
 verify_jwt = true
 
+[functions.generate-qr-token]
+verify_jwt = true
+
 [functions.stripe-webhook]
 verify_jwt = false
+
+[functions.verify-qr-token]
+verify_jwt = true
+
+[functions.verify-subscription-status]
+verify_jwt = true

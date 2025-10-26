@@ -29,7 +29,39 @@ export default function Dashboard() {
 
   useEffect(() => {
     fetchCustomerData();
+    verifySubscriptionStatus();
   }, [user]);
+
+  const verifySubscriptionStatus = async () => {
+    if (!user) return;
+
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+
+      const { data, error } = await supabase.functions.invoke('verify-subscription-status', {
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
+      });
+
+      if (error) {
+        if (process.env.NODE_ENV === 'development') {
+          console.error('Subscription verification error:', error);
+        }
+        return;
+      }
+
+      // If subscription was updated and is now inactive, refresh customer data
+      if (data?.status === 'updated' && data?.localStatus !== 'active') {
+        await fetchCustomerData();
+      }
+    } catch (error) {
+      if (process.env.NODE_ENV === 'development') {
+        console.error('Error verifying subscription:', error);
+      }
+    }
+  };
 
   const fetchCustomerData = async () => {
     if (!user) return;
@@ -47,11 +79,19 @@ export default function Dashboard() {
       // Fetch customer data
       const { data: customer } = await supabase
         .from('customers')
-        .select('tier, pours_balance, total_pours_lifetime, member_since')
+        .select('tier, pours_balance, total_pours_lifetime, member_since, status')
         .eq('user_id', user.id)
         .single();
 
       if (customer) {
+        // Check if customer is inactive
+        if (customer.status !== 'active') {
+          // Show inactive membership state
+          setCustomerData(null);
+          setLoading(false);
+          return;
+        }
+
         // Get tier definition for total pours
         const { data: tierDef } = await supabase
           .from('tier_definitions')
@@ -112,15 +152,18 @@ export default function Dashboard() {
       <div className="flex min-h-screen items-center justify-center p-4">
         <Card className="max-w-md">
           <CardHeader>
-            <CardTitle>No Membership Found</CardTitle>
+            <CardTitle>No Active Membership</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <p className="text-muted-foreground">
-              You don't have an active membership yet. Apply now to join our exclusive wine club!
+              Your membership is not currently active. This could be due to a cancelled subscription or payment issue.
+            </p>
+            <p className="text-sm text-muted-foreground">
+              Please contact our staff at the tasting room or email support for assistance.
             </p>
             <div className="flex flex-col gap-3">
-              <Button asChild size="lg">
-                <Link to="/apply">Apply for Membership</Link>
+              <Button variant="secondary" asChild>
+                <a href="mailto:support@vinosabor.com">Contact Support</a>
               </Button>
               <Button variant="outline" onClick={signOut}>Sign Out</Button>
             </div>

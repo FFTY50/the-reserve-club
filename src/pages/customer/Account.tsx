@@ -5,7 +5,19 @@ import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { TierBadge } from '@/components/TierBadge';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, CreditCard, Calendar, AlertCircle } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 
 interface ProfileData {
   email: string;
@@ -16,13 +28,35 @@ interface ProfileData {
   member_since: string;
 }
 
+interface SubscriptionDetails {
+  id: string;
+  status: string;
+  current_period_end: number;
+  current_period_start: number;
+  cancel_at_period_end: boolean;
+  canceled_at: number | null;
+  tier: string;
+  amount: number;
+  currency: string;
+  payment_method: {
+    brand: string;
+    last4: string;
+    exp_month: number;
+    exp_year: number;
+  } | null;
+}
+
 export default function Account() {
   const { user, signOut } = useAuth();
+  const { toast } = useToast();
   const [profileData, setProfileData] = useState<ProfileData | null>(null);
+  const [subscription, setSubscription] = useState<SubscriptionDetails | null>(null);
   const [loading, setLoading] = useState(true);
+  const [cancellingSubscription, setCancellingSubscription] = useState(false);
 
   useEffect(() => {
     fetchProfileData();
+    fetchSubscriptionDetails();
   }, [user]);
 
   const fetchProfileData = async () => {
@@ -48,6 +82,55 @@ export default function Account() {
       console.error('Error fetching profile data:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchSubscriptionDetails = async () => {
+    if (!user) return;
+
+    try {
+      const { data, error } = await supabase.functions.invoke('get-subscription-details', {
+        headers: {
+          Authorization: `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`,
+        },
+      });
+
+      if (error) throw error;
+      
+      setSubscription(data.subscription);
+    } catch (error) {
+      console.error('Error fetching subscription details:', error);
+    }
+  };
+
+  const handleCancelSubscription = async () => {
+    setCancellingSubscription(true);
+    
+    try {
+      const { data, error } = await supabase.functions.invoke('cancel-subscription', {
+        headers: {
+          Authorization: `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`,
+        },
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "Subscription Cancelled",
+        description: `Your subscription will remain active until ${new Date(data.cancel_at * 1000).toLocaleDateString()}.`,
+      });
+
+      // Refresh subscription details
+      await fetchSubscriptionDetails();
+    } catch (error) {
+      console.error('Error canceling subscription:', error);
+      toast({
+        title: "Error",
+        description: "Failed to cancel subscription. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setCancellingSubscription(false);
     }
   };
 
@@ -116,6 +199,96 @@ export default function Account() {
                 </div>
               </div>
             </div>
+
+            {subscription && (
+              <div className="border-t pt-6">
+                <h3 className="text-sm font-medium text-muted-foreground mb-3">
+                  <CreditCard className="inline-block mr-2 h-4 w-4" />
+                  Billing Information
+                </h3>
+                <div className="space-y-4">
+                  <div>
+                    <p className="text-sm text-muted-foreground">Subscription Status</p>
+                    <div className="flex items-center gap-2 mt-1">
+                      <p className="font-medium capitalize">{subscription.status}</p>
+                      {subscription.cancel_at_period_end && (
+                        <span className="text-xs bg-orange-100 dark:bg-orange-900/30 text-orange-800 dark:text-orange-300 px-2 py-1 rounded">
+                          Cancels at period end
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  <div>
+                    <p className="text-sm text-muted-foreground">
+                      <Calendar className="inline-block mr-1 h-3 w-3" />
+                      Next Billing Date
+                    </p>
+                    <p className="font-medium">
+                      {new Date(subscription.current_period_end * 1000).toLocaleDateString('en-US', {
+                        month: 'long',
+                        day: 'numeric',
+                        year: 'numeric',
+                      })}
+                    </p>
+                  </div>
+
+                  <div>
+                    <p className="text-sm text-muted-foreground">Amount</p>
+                    <p className="font-medium">
+                      ${(subscription.amount / 100).toFixed(2)} / month
+                    </p>
+                  </div>
+
+                  {subscription.payment_method && (
+                    <div>
+                      <p className="text-sm text-muted-foreground">Payment Method</p>
+                      <p className="font-medium capitalize">
+                        {subscription.payment_method.brand} ending in {subscription.payment_method.last4}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        Expires {subscription.payment_method.exp_month}/{subscription.payment_method.exp_year}
+                      </p>
+                    </div>
+                  )}
+
+                  {!subscription.cancel_at_period_end && (
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button variant="outline" className="w-full">
+                          <AlertCircle className="mr-2 h-4 w-4" />
+                          Cancel Subscription
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Cancel Subscription?</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            Your subscription will remain active until the end of your current billing period on{' '}
+                            {new Date(subscription.current_period_end * 1000).toLocaleDateString('en-US', {
+                              month: 'long',
+                              day: 'numeric',
+                              year: 'numeric',
+                            })}
+                            . You'll still have access to your membership benefits until then.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Keep Subscription</AlertDialogCancel>
+                          <AlertDialogAction
+                            onClick={handleCancelSubscription}
+                            disabled={cancellingSubscription}
+                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                          >
+                            {cancellingSubscription ? 'Cancelling...' : 'Cancel Subscription'}
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  )}
+                </div>
+              </div>
+            )}
 
             <div className="border-t pt-6">
               <h3 className="text-sm font-medium text-muted-foreground mb-3">Support</h3>

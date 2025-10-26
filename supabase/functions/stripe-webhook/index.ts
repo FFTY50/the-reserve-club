@@ -148,7 +148,10 @@ serve(async (req) => {
           .eq('customer_id', customer.id)
           .eq('status', 'active');
 
-        // Create new membership record
+        // Get subscription to extract billing period
+        const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+
+        // Create new membership record with billing period
         const { error: membershipError } = await supabase
           .from('memberships')
           .insert({
@@ -160,6 +163,8 @@ serve(async (req) => {
             stripe_subscription_id: subscriptionId,
             stripe_customer_id: customerId,
             toast_reference_number: subscriptionId,
+            billing_period_start: new Date(subscription.current_period_start * 1000).toISOString(),
+            billing_period_end: new Date(subscription.current_period_end * 1000).toISOString()
           });
 
         if (membershipError) {
@@ -232,11 +237,15 @@ serve(async (req) => {
         
         const subscriptionId = subIdResult.data;
 
-        // Find membership
+        // Get subscription to extract billing period
+        const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+
+        // Find and update membership with new billing period
         const { data: membership, error: fetchError } = await supabase
           .from('memberships')
-          .select('customer_id, tier')
+          .select('id, customer_id')
           .eq('stripe_subscription_id', subscriptionId)
+          .eq('status', 'active')
           .single();
 
         if (fetchError || !membership) {
@@ -244,43 +253,26 @@ serve(async (req) => {
           break;
         }
 
-        // Fetch tier to get monthly_pours
-        const { data: tier, error: tierError } = await supabase
-          .from('tier_definitions')
-          .select('monthly_pours')
-          .eq('tier_name', membership.tier)
-          .single();
+        // Update membership with billing period from Stripe
+        const { error: membershipError } = await supabase
+          .from('memberships')
+          .update({
+            billing_period_start: new Date(subscription.current_period_start * 1000).toISOString(),
+            billing_period_end: new Date(subscription.current_period_end * 1000).toISOString()
+          })
+          .eq('id', membership.id);
 
-        if (tierError || !tier) {
-          console.error('Failed to fetch tier:', tierError);
-          break;
+        if (membershipError) {
+          console.error('Error updating membership billing period:', membershipError);
         }
 
-        // Add pours to customer balance
-        const { error: updateError } = await supabase.rpc('increment', {
-          table_name: 'customers',
-          column_name: 'pours_balance',
-          increment_by: tier.monthly_pours,
-          row_id: membership.customer_id,
-        }).single();
+        // Update customer last activity
+        await supabase
+          .from('customers')
+          .update({ last_activity: new Date().toISOString() })
+          .eq('id', membership.customer_id);
 
-        if (updateError) {
-          // Fallback: manually fetch and update
-          const { data: customer } = await supabase
-            .from('customers')
-            .select('pours_balance')
-            .eq('id', membership.customer_id)
-            .single();
-
-          if (customer) {
-            await supabase
-              .from('customers')
-              .update({ pours_balance: customer.pours_balance + tier.monthly_pours })
-              .eq('id', membership.customer_id);
-          }
-        }
-
-        console.log('Pours renewed for customer:', membership.customer_id);
+        console.log(`Billing period updated for customer ${membership.customer_id}`);
         break;
       }
 

@@ -34,6 +34,22 @@ export default function AddPour() {
     try {
       const qty = parseInt(quantity);
       
+      // Verify available pours before recording
+      const { data: availableData, error: availableError } = await supabase.functions.invoke(
+        'get-available-pours',
+        { body: { customer_id: id } }
+      );
+
+      if (availableError || !availableData) {
+        throw new Error('Failed to verify available pours');
+      }
+
+      if (availableData.available_pours < qty) {
+        toast.error(`Only ${availableData.available_pours} pours available in current billing period`);
+        setSubmitting(false);
+        return;
+      }
+      
       // Insert pour record with proper location enum value
       const locationMap: Record<string, 'main_bar' | 'private_event' | 'tasting_room'> = {
         'bar': 'main_bar',
@@ -55,10 +71,10 @@ export default function AddPour() {
 
       if (pourError) throw pourError;
 
-      // Update customer balance directly
+      // Update total lifetime pours only
       const { data: currentCustomer } = await supabase
         .from('customers')
-        .select('pours_balance, total_pours_lifetime')
+        .select('total_pours_lifetime')
         .eq('id', id)
         .single();
 
@@ -66,8 +82,8 @@ export default function AddPour() {
         await supabase
           .from('customers')
           .update({ 
-            pours_balance: Math.max(0, currentCustomer.pours_balance - qty),
-            total_pours_lifetime: currentCustomer.total_pours_lifetime + qty
+            total_pours_lifetime: currentCustomer.total_pours_lifetime + qty,
+            last_activity: new Date().toISOString()
           })
           .eq('id', id);
       }

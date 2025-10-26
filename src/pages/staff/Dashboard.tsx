@@ -13,7 +13,6 @@ interface CustomerResult {
   user_id: string;
   tier: 'select' | 'premier' | 'elite' | 'household';
   status: string;
-  pours_balance: number;
   profiles: {
     first_name: string;
     last_name: string;
@@ -76,8 +75,6 @@ export default function StaffDashboard() {
         user_id: p.id,
         tier: p.customers?.tier,
         status: p.customers?.status,
-        pours_balance: p.customers?.pours_balance,
-        member_since: p.customers?.member_since,
         profiles: {
           first_name: p.first_name,
           last_name: p.last_name,
@@ -124,21 +121,12 @@ export default function StaffDashboard() {
         user_id: p.id,
         tier: p.customers?.tier,
         status: p.customers?.status,
-        pours_balance: p.customers?.pours_balance,
-        member_since: p.customers?.member_since,
         profiles: {
           first_name: p.first_name,
           last_name: p.last_name,
           email: p.email
         }
       })) || [];
-      
-      // Sort by member_since descending
-      transformed.sort((a, b) => {
-        const dateA = new Date(a.member_since || 0).getTime();
-        const dateB = new Date(b.member_since || 0).getTime();
-        return dateB - dateA;
-      });
       
       setResults(transformed);
     } catch (error) {
@@ -212,9 +200,6 @@ export default function StaffDashboard() {
                         </div>
                         <div className="flex flex-col items-end gap-2">
                           <TierBadge tier={customer.tier} />
-                          <p className="text-sm text-muted-foreground">
-                            {customer.pours_balance} pours
-                          </p>
                         </div>
                       </div>
                     </CardContent>

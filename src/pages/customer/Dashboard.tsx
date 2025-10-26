@@ -12,10 +12,11 @@ import { QRCodeSVG } from 'qrcode.react';
 
 interface CustomerData {
   tier: 'select' | 'premier' | 'elite' | 'household';
-  pours_balance: number;
+  available_pours: number;
+  pours_used: number;
   total_pours_lifetime: number;
   member_since: string;
-  total_pours_allocated: number;
+  tier_max_pours: number;
 }
 
 export default function Dashboard() {
@@ -80,7 +81,7 @@ export default function Dashboard() {
       // Fetch customer data
       const { data: customer } = await supabase
         .from('customers')
-        .select('tier, pours_balance, total_pours_lifetime, member_since, status')
+        .select('id, tier, total_pours_lifetime, member_since, status')
         .eq('user_id', user.id)
         .single();
 
@@ -93,16 +94,27 @@ export default function Dashboard() {
           return;
         }
 
-        // Get tier definition for total pours
-        const { data: tierDef } = await supabase
-          .from('tier_definitions')
-          .select('monthly_pours')
-          .eq('tier_name', customer.tier)
-          .single();
+        // Get available pours from edge function
+        const { data: { session } } = await supabase.auth.getSession();
+        const { data: poursData, error: poursError } = await supabase.functions.invoke(
+          'get-available-pours',
+          {
+            body: { customer_id: customer.id },
+            headers: session ? { Authorization: `Bearer ${session.access_token}` } : {}
+          }
+        );
+
+        if (poursError) {
+          console.error('Error fetching available pours:', poursError);
+        }
 
         setCustomerData({
-          ...customer,
-          total_pours_allocated: tierDef?.monthly_pours || 0,
+          tier: customer.tier,
+          available_pours: poursData?.available_pours || 0,
+          pours_used: poursData?.pours_used || 0,
+          total_pours_lifetime: customer.total_pours_lifetime,
+          member_since: customer.member_since,
+          tier_max_pours: poursData?.tier_max || 0,
         });
       } else {
         // Check if user has ever had a customer record (even if inactive)
@@ -333,7 +345,7 @@ export default function Dashboard() {
     );
   }
 
-  const poursPercentage = (customerData.pours_balance / customerData.total_pours_allocated) * 100;
+  const poursPercentage = (customerData.pours_used / customerData.tier_max_pours) * 100;
 
   return (
     <div className="min-h-screen p-4 md:p-8">
@@ -356,17 +368,20 @@ export default function Dashboard() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Pours Remaining</CardTitle>
+            <CardTitle>Pours This Month</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="text-center">
               <p className="text-5xl font-serif text-primary">
-                {customerData.pours_balance} / {customerData.total_pours_allocated}
+                {customerData.available_pours} / {customerData.tier_max_pours}
+              </p>
+              <p className="text-sm text-muted-foreground mt-2">
+                {customerData.pours_used} used this billing period
               </p>
             </div>
             <Progress value={poursPercentage} className="h-3" />
             <p className="text-sm text-muted-foreground text-center">
-              Resets on the 1st of each month
+              Resets on your monthly billing date
             </p>
           </CardContent>
         </Card>

@@ -13,7 +13,7 @@ interface CustomerData {
   user_id: string;
   tier: 'select' | 'premier' | 'elite' | 'household';
   status: string;
-  pours_balance: number;
+  available_pours: number;
   total_pours_lifetime: number;
   member_since: string;
   profiles: {
@@ -61,7 +61,7 @@ export default function CustomerDetail() {
       // Fetch customer by route param (supports both user_id and customer id)
       const { data: byUser } = await supabase
         .from('customers')
-        .select('id, user_id, tier, status, pours_balance, total_pours_lifetime, member_since')
+        .select('id, user_id, tier, status, total_pours_lifetime, member_since')
         .eq('user_id', routeId)
         .maybeSingle();
 
@@ -69,7 +69,7 @@ export default function CustomerDetail() {
       if (!baseCustomer) {
         const { data: byId } = await supabase
           .from('customers')
-          .select('id, user_id, tier, status, pours_balance, total_pours_lifetime, member_since')
+          .select('id, user_id, tier, status, total_pours_lifetime, member_since')
           .eq('id', routeId)
           .maybeSingle();
         baseCustomer = byId as any;
@@ -87,12 +87,18 @@ export default function CustomerDetail() {
         .eq('id', baseCustomer.user_id)
         .maybeSingle();
 
+      // Get available pours from edge function
+      const { data: availablePoursData } = await supabase.functions.invoke(
+        'get-available-pours',
+        { body: { customer_id: baseCustomer.id } }
+      );
+
       const customerWithProfile: CustomerData = {
         id: baseCustomer.id,
         user_id: baseCustomer.user_id,
         tier: baseCustomer.tier,
         status: baseCustomer.status,
-        pours_balance: baseCustomer.pours_balance,
+        available_pours: availablePoursData?.available_pours || 0,
         total_pours_lifetime: baseCustomer.total_pours_lifetime,
         member_since: baseCustomer.member_since,
         profiles: {
@@ -223,7 +229,7 @@ export default function CustomerDetail() {
           <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="text-center p-4 bg-muted rounded-lg">
-                <p className="text-3xl font-bold">{customer.pours_balance}</p>
+                <p className="text-3xl font-bold">{customer.available_pours}</p>
                 <p className="text-sm text-muted-foreground">Available Pours</p>
               </div>
               <div className="text-center p-4 bg-muted rounded-lg">

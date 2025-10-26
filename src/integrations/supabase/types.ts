@@ -127,6 +127,8 @@ export type Database = {
       }
       memberships: {
         Row: {
+          billing_period_end: string | null
+          billing_period_start: string | null
           created_at: string | null
           customer_id: string
           id: string
@@ -142,6 +144,8 @@ export type Database = {
           updated_at: string | null
         }
         Insert: {
+          billing_period_end?: string | null
+          billing_period_start?: string | null
           created_at?: string | null
           customer_id: string
           id?: string
@@ -157,6 +161,8 @@ export type Database = {
           updated_at?: string | null
         }
         Update: {
+          billing_period_end?: string | null
+          billing_period_start?: string | null
           created_at?: string | null
           customer_id?: string
           id?: string
@@ -337,6 +343,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      get_available_pours: { Args: { customer_uuid: string }; Returns: number }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]

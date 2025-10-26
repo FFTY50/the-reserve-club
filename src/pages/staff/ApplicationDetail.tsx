@@ -118,7 +118,6 @@ export default function ApplicationDetail() {
           user_id: application.user_id,
           tier: application.selected_tier || 'select',
           member_since: new Date().toISOString().split('T')[0],
-          pours_balance: tierInfo?.monthly_pours || 0,
           status: 'active',
           signed_up_by_staff_id: user.id,
         })

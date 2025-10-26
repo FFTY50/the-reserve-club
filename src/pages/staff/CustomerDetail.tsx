@@ -144,8 +144,8 @@ export default function CustomerDetail() {
 
       if (appData?.preferences) {
         setPreferences(appData.preferences);
-        // Generate AI summary
-        generateProfileSummary(appData.preferences);
+        // Generate AI summary with customer data
+        generateProfileSummary(appData.preferences, customerWithProfile, poursData || []);
       }
     } catch (error) {
       console.error('Error fetching customer data:', error);
@@ -154,18 +154,22 @@ export default function CustomerDetail() {
     }
   };
 
-  const generateProfileSummary = async (prefs: any) => {
-    if (!prefs || !customer) return;
+  const generateProfileSummary = async (
+    prefs: any, 
+    customerData: CustomerData, 
+    pourHistory: PourRecord[]
+  ) => {
+    if (!prefs || !customerData) return;
     
     setSummaryLoading(true);
     try {
-      const lastVisit = pours.length > 0 ? format(new Date(pours[0].created_at), 'MMMM dd, yyyy') : null;
-      const memberSinceFormatted = format(new Date(customer.member_since), 'MMMM dd, yyyy');
+      const lastVisit = pourHistory.length > 0 ? format(new Date(pourHistory[0].created_at), 'MMMM dd, yyyy') : null;
+      const memberSinceFormatted = format(new Date(customerData.member_since), 'MMMM dd, yyyy');
       
       const { data, error } = await supabase.functions.invoke('generate-profile-summary', {
         body: { 
           preferences: prefs,
-          memberName: customer.profiles.first_name,
+          memberName: customerData.profiles.first_name,
           lastVisit,
           memberSince: memberSinceFormatted
         }

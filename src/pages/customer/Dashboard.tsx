@@ -26,6 +26,7 @@ export default function Dashboard() {
   const [firstName, setFirstName] = useState('');
   const [hasPendingApplication, setHasPendingApplication] = useState(false);
   const [showApplicationDialog, setShowApplicationDialog] = useState(false);
+  const [hasHadMembershipBefore, setHasHadMembershipBefore] = useState(false);
 
   useEffect(() => {
     fetchCustomerData();
@@ -104,6 +105,24 @@ export default function Dashboard() {
           total_pours_allocated: tierDef?.monthly_pours || 0,
         });
       } else {
+        // Check if user has ever had a customer record (even if inactive)
+        const { data: anyCustomer } = await supabase
+          .from('customers')
+          .select('id')
+          .eq('user_id', user.id)
+          .maybeSingle();
+        
+        // If they have/had a customer record, check for past memberships
+        if (anyCustomer) {
+          const { data: pastMemberships } = await supabase
+            .from('memberships')
+            .select('id')
+            .eq('customer_id', anyCustomer.id)
+            .limit(1);
+          
+          setHasHadMembershipBefore((pastMemberships?.length || 0) > 0);
+        }
+
         // Check if user has a pending application
         const { data: application } = await supabase
           .from('membership_applications')
@@ -152,22 +171,41 @@ export default function Dashboard() {
       <div className="flex min-h-screen items-center justify-center p-4">
         <Card className="max-w-md">
           <CardHeader>
-            <CardTitle>No Active Membership</CardTitle>
+            <CardTitle>
+              {hasHadMembershipBefore ? 'No Active Membership' : 'Welcome to Vino Sabor!'}
+            </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <p className="text-muted-foreground">
-              Your membership is not currently active. This could be due to a cancelled subscription or payment issue.
-            </p>
-            <p className="text-sm text-muted-foreground">
-              Please contact our staff at the tasting room or email support for assistance.
-            </p>
+            {hasHadMembershipBefore ? (
+              <>
+                <p className="text-muted-foreground">
+                  Your membership is not currently active. This could be due to a cancelled subscription or payment issue.
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  Restart your membership to regain access to your exclusive wine benefits.
+                </p>
+              </>
+            ) : (
+              <>
+                <p className="text-muted-foreground">
+                  Complete your membership signup to start enjoying exclusive wine pours and member benefits.
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  Take our quick survey to help us tailor your wine experience.
+                </p>
+              </>
+            )}
             <div className="flex flex-col gap-3">
               <Button asChild>
-                <Link to="/apply">Renew Membership</Link>
+                <Link to="/apply">
+                  {hasHadMembershipBefore ? 'Renew Membership' : 'Get Started'}
+                </Link>
               </Button>
-              <Button variant="secondary" asChild>
-                <a href="mailto:support@vinosabor.com">Contact Support</a>
-              </Button>
+              {hasHadMembershipBefore && (
+                <Button variant="secondary" asChild>
+                  <a href="mailto:support@vinosabor.com">Contact Support</a>
+                </Button>
+              )}
               <Button variant="outline" onClick={signOut}>Sign Out</Button>
             </div>
           </CardContent>

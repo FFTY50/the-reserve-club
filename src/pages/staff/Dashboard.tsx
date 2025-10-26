@@ -47,27 +47,45 @@ export default function StaffDashboard() {
   const fetchRecentCustomers = async () => {
     setLoading(true);
     try {
-      const { data, error } = await supabase
-        .from('customers')
+      // Get recent customers by querying profiles and joining customer data
+      const { data: profiles, error } = await supabase
+        .from('profiles')
         .select(`
           id,
-          user_id,
-          tier,
-          status,
-          pours_balance,
-          member_since,
-          profiles!customers_user_id_fkey (
-            first_name,
-            last_name,
-            email
+          first_name,
+          last_name,
+          email,
+          customers!customers_user_id_fkey (
+            id,
+            tier,
+            status,
+            pours_balance,
+            member_since
           )
         `)
-        .eq('status', 'active')
-        .order('member_since', { ascending: false })
+        .not('customers', 'is', null)
+        .eq('customers.status', 'active')
+        .order('customers(member_since)', { ascending: false })
         .limit(5);
 
       if (error) throw error;
-      setResults((data as any) || []);
+      
+      // Transform to match CustomerResult interface
+      const transformed = profiles?.map((p: any) => ({
+        id: p.customers?.id,
+        user_id: p.id,
+        tier: p.customers?.tier,
+        status: p.customers?.status,
+        pours_balance: p.customers?.pours_balance,
+        member_since: p.customers?.member_since,
+        profiles: {
+          first_name: p.first_name,
+          last_name: p.last_name,
+          email: p.email
+        }
+      })) || [];
+      
+      setResults(transformed);
     } catch (error) {
       console.error('Error fetching recent customers:', error);
     } finally {
@@ -78,27 +96,51 @@ export default function StaffDashboard() {
   const handleSearch = async () => {
     setLoading(true);
     try {
-      const { data, error } = await supabase
-        .from('customers')
+      // Search profiles and get associated customer data
+      const { data: profiles, error } = await supabase
+        .from('profiles')
         .select(`
           id,
-          user_id,
-          tier,
-          status,
-          pours_balance,
-          member_since,
-          profiles!customers_user_id_fkey (
-            first_name,
-            last_name,
-            email
+          first_name,
+          last_name,
+          email,
+          customers!customers_user_id_fkey (
+            id,
+            tier,
+            status,
+            pours_balance,
+            member_since
           )
         `)
-        .or(`profiles.first_name.ilike.%${searchTerm}%,profiles.last_name.ilike.%${searchTerm}%,profiles.email.ilike.%${searchTerm}%`)
-        .eq('status', 'active')
-        .order('member_since', { ascending: false });
+        .or(`first_name.ilike.%${searchTerm}%,last_name.ilike.%${searchTerm}%,email.ilike.%${searchTerm}%`)
+        .not('customers', 'is', null)
+        .eq('customers.status', 'active');
 
       if (error) throw error;
-      setResults((data as any) || []);
+      
+      // Transform to match CustomerResult interface
+      const transformed = profiles?.map((p: any) => ({
+        id: p.customers?.id,
+        user_id: p.id,
+        tier: p.customers?.tier,
+        status: p.customers?.status,
+        pours_balance: p.customers?.pours_balance,
+        member_since: p.customers?.member_since,
+        profiles: {
+          first_name: p.first_name,
+          last_name: p.last_name,
+          email: p.email
+        }
+      })) || [];
+      
+      // Sort by member_since descending
+      transformed.sort((a, b) => {
+        const dateA = new Date(a.member_since || 0).getTime();
+        const dateB = new Date(b.member_since || 0).getTime();
+        return dateB - dateA;
+      });
+      
+      setResults(transformed);
     } catch (error) {
       console.error('Search error:', error);
     } finally {

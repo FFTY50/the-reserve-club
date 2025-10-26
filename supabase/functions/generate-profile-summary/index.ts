@@ -12,7 +12,7 @@ serve(async (req) => {
   }
 
   try {
-    const { preferences } = await req.json();
+    const { preferences, memberName, lastVisit, memberSince } = await req.json();
     
     if (!preferences) {
       return new Response(
@@ -28,12 +28,15 @@ serve(async (req) => {
 
     // Create a structured prompt for the AI
     const preferencesText = JSON.stringify(preferences, null, 2);
+    const visitInfo = lastVisit ? `last visited on ${lastVisit}` : `became a member on ${memberSince}`;
     const prompt = `Based on the following membership application survey data, create a concise, personalized customer profile summary (2-3 sentences) that highlights their key preferences and interests. Focus on wine preferences, tasting notes, and any notable details that would help staff provide excellent service.
 
+Member: ${memberName}
+Visit History: ${visitInfo}
 Survey Data:
 ${preferencesText}
 
-Provide a natural, conversational summary suitable for staff to quickly understand this customer's profile.`;
+Important: Address the member by their first name and reference when they last visited or joined. Provide a natural, conversational summary suitable for staff to quickly understand this customer's profile.`;
 
     const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
@@ -46,7 +49,7 @@ Provide a natural, conversational summary suitable for staff to quickly understa
         messages: [
           {
             role: 'system',
-            content: 'You are a helpful assistant that creates concise customer profile summaries for wine club staff. Keep summaries brief, professional, and focused on preferences that help provide excellent service.'
+            content: 'You are a helpful assistant that creates concise customer profile summaries for wine club staff. Keep summaries brief, professional, and focused on preferences that help provide excellent service. Always address the member by their first name and reference their visit history naturally in your summary.'
           },
           {
             role: 'user',

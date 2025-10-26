@@ -117,28 +117,38 @@ serve(async (req) => {
           throw new Error('Failed to approve application');
         }
 
-        // Create customer record
+        // Upsert customer record (handles both new signups and renewals)
         const { data: customer, error: customerError } = await supabase
           .from('customers')
-          .insert({
+          .upsert({
             user_id: userId,
             tier: tierName,
             member_since: new Date().toISOString().split('T')[0],
             pours_balance: tier.monthly_pours,
             status: 'active',
             total_pours_lifetime: 0,
+          }, {
+            onConflict: 'user_id',
+            ignoreDuplicates: false
           })
           .select()
           .single();
 
         if (customerError) {
-          console.error('Failed to create customer:', customerError);
-          throw new Error('Failed to create customer record');
+          console.error('Failed to upsert customer:', customerError);
+          throw new Error('Failed to create/update customer record');
         }
 
-        console.log('Customer created:', customer.id);
+        console.log('Customer upserted:', customer.id);
 
-        // Create membership record
+        // Cancel any existing active memberships for this customer
+        await supabase
+          .from('memberships')
+          .update({ status: 'cancelled' })
+          .eq('customer_id', customer.id)
+          .eq('status', 'active');
+
+        // Create new membership record
         const { error: membershipError } = await supabase
           .from('memberships')
           .insert({

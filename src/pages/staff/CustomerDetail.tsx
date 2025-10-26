@@ -10,6 +10,7 @@ import { format } from 'date-fns';
 
 interface CustomerData {
   id: string;
+  user_id: string;
   tier: 'select' | 'premier' | 'elite' | 'household';
   status: string;
   pours_balance: number;
@@ -40,7 +41,7 @@ interface ApplicationPreferences {
 }
 
 export default function CustomerDetail() {
-  const { userId } = useParams();
+  const { id } = useParams();
   const [customer, setCustomer] = useState<CustomerData | null>(null);
   const [membership, setMembership] = useState<MembershipData | null>(null);
   const [pours, setPours] = useState<PourRecord[]>([]);
@@ -48,41 +49,67 @@ export default function CustomerDetail() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (userId) {
-      fetchCustomerData();
+    if (!id) {
+      setLoading(false);
+      return;
     }
-  }, [userId]);
+    fetchCustomerData(id);
+  }, [id]);
 
-  const fetchCustomerData = async () => {
+  const fetchCustomerData = async (routeId: string) => {
     try {
-      // Fetch customer and profile data
-      const { data: customerData, error: customerError } = await supabase
+      // Fetch customer by route param (supports both user_id and customer id)
+      const { data: byUser } = await supabase
         .from('customers')
-        .select(`
-          id,
-          tier,
-          status,
-          pours_balance,
-          total_pours_lifetime,
-          member_since,
-          profiles!customers_user_id_fkey (
-            first_name,
-            last_name,
-            email,
-            phone
-          )
-        `)
-        .eq('user_id', userId)
-        .single();
+        .select('id, user_id, tier, status, pours_balance, total_pours_lifetime, member_since')
+        .eq('user_id', routeId)
+        .maybeSingle();
 
-      if (customerError) throw customerError;
-      setCustomer(customerData as any);
+      let baseCustomer = byUser as any;
+      if (!baseCustomer) {
+        const { data: byId } = await supabase
+          .from('customers')
+          .select('id, user_id, tier, status, pours_balance, total_pours_lifetime, member_since')
+          .eq('id', routeId)
+          .maybeSingle();
+        baseCustomer = byId as any;
+      }
+
+      if (!baseCustomer) {
+        setCustomer(null);
+        return;
+      }
+
+      // Fetch profile separately
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('first_name, last_name, email, phone')
+        .eq('id', baseCustomer.user_id)
+        .maybeSingle();
+
+      const customerWithProfile: CustomerData = {
+        id: baseCustomer.id,
+        user_id: baseCustomer.user_id,
+        tier: baseCustomer.tier,
+        status: baseCustomer.status,
+        pours_balance: baseCustomer.pours_balance,
+        total_pours_lifetime: baseCustomer.total_pours_lifetime,
+        member_since: baseCustomer.member_since,
+        profiles: {
+          first_name: profile?.first_name || '',
+          last_name: profile?.last_name || '',
+          email: profile?.email || '',
+          phone: profile?.phone || ''
+        }
+      };
+
+      setCustomer(customerWithProfile);
 
       // Fetch membership data
       const { data: membershipData } = await supabase
         .from('memberships')
         .select('status')
-        .eq('customer_id', customerData.id)
+        .eq('customer_id', baseCustomer.id)
         .eq('status', 'active')
         .maybeSingle();
 
@@ -92,7 +119,7 @@ export default function CustomerDetail() {
       const { data: poursData } = await supabase
         .from('pours')
         .select('id, created_at, quantity, location, notes')
-        .eq('customer_id', customerData.id)
+        .eq('customer_id', baseCustomer.id)
         .order('created_at', { ascending: false })
         .limit(10);
 
@@ -102,7 +129,7 @@ export default function CustomerDetail() {
       const { data: appData } = await supabase
         .from('membership_applications')
         .select('preferences')
-        .eq('user_id', userId)
+        .eq('user_id', baseCustomer.user_id)
         .order('created_at', { ascending: false })
         .limit(1)
         .maybeSingle();

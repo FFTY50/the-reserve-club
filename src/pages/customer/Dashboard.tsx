@@ -162,6 +162,9 @@ export default function Dashboard() {
               Please contact our staff at the tasting room or email support for assistance.
             </p>
             <div className="flex flex-col gap-3">
+              <Button asChild>
+                <Link to="/apply">Renew Membership</Link>
+              </Button>
               <Button variant="secondary" asChild>
                 <a href="mailto:support@vinosabor.com">Contact Support</a>
               </Button>

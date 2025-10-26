@@ -25,7 +25,6 @@ interface CustomerData {
 
 interface MembershipData {
   status: string;
-  stripe_subscription_id: string | null;
 }
 
 interface PourRecord {
@@ -46,7 +45,6 @@ export default function CustomerDetail() {
   const [membership, setMembership] = useState<MembershipData | null>(null);
   const [pours, setPours] = useState<PourRecord[]>([]);
   const [preferences, setPreferences] = useState<any>(null);
-  const [subscriptionDetails, setSubscriptionDetails] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -83,20 +81,12 @@ export default function CustomerDetail() {
       // Fetch membership data
       const { data: membershipData } = await supabase
         .from('memberships')
-        .select('status, stripe_subscription_id')
+        .select('status')
         .eq('customer_id', customerData.id)
         .eq('status', 'active')
         .maybeSingle();
 
       setMembership(membershipData);
-
-      // If has active subscription, get details from Stripe
-      if (membershipData?.stripe_subscription_id) {
-        const { data: subDetails } = await supabase.functions.invoke('get-subscription-details', {
-          body: { subscriptionId: membershipData.stripe_subscription_id }
-        });
-        setSubscriptionDetails(subDetails);
-      }
 
       // Fetch pour history
       const { data: poursData } = await supabase
@@ -128,48 +118,29 @@ export default function CustomerDetail() {
   };
 
   const getStatusConfig = () => {
-    if (!customer || !subscriptionDetails) {
-      if (customer?.status === 'inactive') {
-        return {
-          color: 'bg-red-500',
-          label: 'Canceled',
-          date: null,
-          dateLabel: null
-        };
-      }
+    if (customer?.status === 'inactive') {
       return {
-        color: 'bg-green-500',
-        label: 'Active',
+        color: 'bg-destructive',
+        label: 'Canceled',
         date: null,
         dateLabel: null
       };
     }
-
-    const { status, cancel_at, canceled_at, current_period_end } = subscriptionDetails;
-
-    if (canceled_at) {
+    
+    if (membership?.status === 'active') {
       return {
-        color: 'bg-red-500',
-        label: 'Canceled',
-        date: canceled_at,
-        dateLabel: 'Canceled on'
-      };
-    }
-
-    if (cancel_at) {
-      return {
-        color: 'bg-yellow-500',
-        label: 'Pending Cancellation',
-        date: cancel_at,
-        dateLabel: 'Cancels on'
+        color: 'bg-green-500',
+        label: 'Active',
+        date: null,
+        dateLabel: 'Active Membership'
       };
     }
 
     return {
       color: 'bg-green-500',
       label: 'Active',
-      date: current_period_end,
-      dateLabel: 'Next payment'
+      date: null,
+      dateLabel: null
     };
   };
 
@@ -252,9 +223,9 @@ export default function CustomerDetail() {
               <div className={`w-4 h-4 rounded-full ${statusConfig.color}`} />
               <div className="flex-1">
                 <p className="font-semibold text-lg">{statusConfig.label}</p>
-                {statusConfig.date && (
+                {statusConfig.dateLabel && (
                   <p className="text-sm text-muted-foreground">
-                    {statusConfig.dateLabel}: {format(new Date(statusConfig.date * 1000), 'MMM dd, yyyy')}
+                    {statusConfig.dateLabel}
                   </p>
                 )}
               </div>

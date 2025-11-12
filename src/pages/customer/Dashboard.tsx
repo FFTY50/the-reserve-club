@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription } from '@/components/ui/alert-dialog';
-import { QrCode, History, User, Clock } from 'lucide-react';
+import { QrCode, History, User, Clock, Calendar } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 
 interface CustomerData {
@@ -348,77 +348,119 @@ export default function Dashboard() {
   const poursPercentage = (customerData.pours_used / customerData.tier_max_pours) * 100;
 
   return (
-    <div className="min-h-screen p-4 md:p-8">
-      <div className="max-w-2xl mx-auto space-y-6">
-        <div className="flex justify-between items-center">
-          <h1 className="text-3xl font-serif">Welcome Back, {firstName}!</h1>
-          <Button variant="ghost" size="sm" onClick={signOut}>
+    <div className="min-h-screen pb-20 md:pb-8">
+      {/* Header */}
+      <div className="bg-card border-b border-border px-4 py-4">
+        <div className="max-w-2xl mx-auto flex justify-between items-center">
+          <div>
+            <h1 className="text-2xl md:text-3xl font-serif">Welcome Back, {firstName}!</h1>
+            <div className="flex items-center gap-2 mt-1">
+              <TierBadge tier={customerData.tier} />
+            </div>
+          </div>
+          <Button variant="ghost" size="sm" onClick={signOut} className="text-xs md:text-sm">
             Sign Out
           </Button>
         </div>
+      </div>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Current Tier</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <TierBadge tier={customerData.tier} className="text-lg px-6 py-2" />
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Pours This Month</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
+      <div className="max-w-2xl mx-auto px-4 py-6 space-y-6">
+        {/* Pours Counter - Most Important */}
+        <Card className="border-2 border-primary/20">
+          <CardContent className="pt-6 space-y-4">
             <div className="text-center">
-              <p className="text-5xl font-serif text-primary">
-                {customerData.available_pours} / {customerData.tier_max_pours}
+              <p className="text-sm font-serif text-muted-foreground mb-2">Pours This Month</p>
+              <p className="text-6xl md:text-7xl font-serif text-primary">
+                {customerData.available_pours} <span className="text-muted-foreground">/ {customerData.tier_max_pours}</span>
               </p>
-              <p className="text-sm text-muted-foreground mt-2">
+              <p className="text-sm text-muted-foreground mt-3">
                 {customerData.pours_used} used this billing period
               </p>
             </div>
-            <Progress value={poursPercentage} className="h-3" />
-            <p className="text-sm text-muted-foreground text-center">
+            <Progress value={poursPercentage} className="h-2" />
+            <p className="text-xs text-muted-foreground text-center">
               Resets on your monthly billing date
             </p>
           </CardContent>
         </Card>
 
+        {/* Events Calendar - Coming Soon */}
         <Card>
           <CardHeader>
-            <CardTitle>Member Since</CardTitle>
+            <CardTitle className="flex items-center gap-2 text-lg">
+              <Calendar className="w-5 h-5" />
+              Upcoming Events
+            </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-xl">
-              {new Date(customerData.member_since).toLocaleDateString('en-US', {
-                month: 'long',
-                year: 'numeric',
-              })}
-            </p>
+            <div className="text-center py-8">
+              <p className="text-muted-foreground font-serif text-lg">Coming Soon</p>
+              <p className="text-xs text-muted-foreground mt-2">
+                Exclusive member events and tastings
+              </p>
+            </div>
           </CardContent>
         </Card>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <Button asChild size="lg" className="h-20">
-            <Link to="/qr-code" className="flex flex-col items-center gap-2">
-              <QrCode className="h-6 w-6" />
-              <span>Show QR Code</span>
+        {/* Quick Actions Menu */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">Quick Actions</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            <Link to="/qr-code">
+              <Button variant="ghost" className="w-full justify-start h-14 text-base" size="lg">
+                <QrCode className="h-5 w-5 mr-3" />
+                Show My QR Code
+              </Button>
             </Link>
-          </Button>
-          <Button asChild size="lg" variant="secondary" className="h-20">
-            <Link to="/pours" className="flex flex-col items-center gap-2">
-              <History className="h-6 w-6" />
-              <span>View History</span>
+            <Link to="/pours">
+              <Button variant="ghost" className="w-full justify-start h-14 text-base" size="lg">
+                <History className="h-5 w-5 mr-3" />
+                View Pour History
+              </Button>
             </Link>
-          </Button>
-          <Button asChild size="lg" variant="secondary" className="h-20">
-            <Link to="/account" className="flex flex-col items-center gap-2">
-              <User className="h-6 w-6" />
-              <span>Account</span>
+            <Link to="/account">
+              <Button variant="ghost" className="w-full justify-start h-14 text-base" size="lg">
+                <User className="h-5 w-5 mr-3" />
+                Account Settings
+              </Button>
             </Link>
-          </Button>
+          </CardContent>
+        </Card>
+
+        {/* Member Since - De-emphasized */}
+        <div className="text-center pt-2">
+          <p className="text-xs text-muted-foreground">
+            Member since {new Date(customerData.member_since).toLocaleDateString('en-US', {
+              month: 'long',
+              year: 'numeric',
+            })}
+          </p>
+        </div>
+      </div>
+
+      {/* Mobile Bottom Navigation */}
+      <div className="fixed bottom-0 left-0 right-0 bg-card border-t border-border md:hidden">
+        <div className="grid grid-cols-3 gap-px bg-border">
+          <Link to="/qr-code">
+            <Button variant="ghost" className="h-16 w-full rounded-none flex flex-col items-center gap-1">
+              <QrCode className="h-5 w-5" />
+              <span className="text-xs">QR Code</span>
+            </Button>
+          </Link>
+          <Link to="/pours">
+            <Button variant="ghost" className="h-16 w-full rounded-none flex flex-col items-center gap-1">
+              <History className="h-5 w-5" />
+              <span className="text-xs">History</span>
+            </Button>
+          </Link>
+          <Link to="/account">
+            <Button variant="ghost" className="h-16 w-full rounded-none flex flex-col items-center gap-1">
+              <User className="h-5 w-5" />
+              <span className="text-xs">Account</span>
+            </Button>
+          </Link>
         </div>
       </div>
     </div>

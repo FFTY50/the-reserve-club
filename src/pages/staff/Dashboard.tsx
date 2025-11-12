@@ -189,16 +189,18 @@ export default function StaffDashboard() {
                 >
                   <Card className="hover:bg-accent transition-colors">
                     <CardContent className="p-4">
-                      <div className="flex items-start justify-between gap-4">
-                        <div className="flex-1">
-                          <p className="font-semibold">
-                            {customer.profiles?.first_name} {customer.profiles?.last_name}
-                          </p>
-                          <p className="text-sm text-muted-foreground">
-                            {customer.profiles?.email}
-                          </p>
+                      <div className="flex flex-col gap-3">
+                        <div className="flex items-start justify-between gap-4">
+                          <div className="flex-1 min-w-0">
+                            <p className="font-semibold text-base truncate">
+                              {customer.profiles?.first_name} {customer.profiles?.last_name}
+                            </p>
+                            <p className="text-sm text-muted-foreground truncate">
+                              {customer.profiles?.email}
+                            </p>
+                          </div>
                         </div>
-                        <div className="flex flex-col items-end gap-2">
+                        <div className="flex items-center">
                           <TierBadge tier={customer.tier} />
                         </div>
                       </div>

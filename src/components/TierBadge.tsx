@@ -1,3 +1,5 @@
+import { Crown, Star, Gem, Users } from 'lucide-react';
+
 interface TierBadgeProps {
   tier: 'select' | 'premier' | 'elite' | 'household';
   className?: string;
@@ -5,18 +7,19 @@ interface TierBadgeProps {
 
 export function TierBadge({ tier, className }: TierBadgeProps) {
   const tierConfig = {
-    select: { label: 'Select', dotColor: 'bg-tier-select', textColor: 'text-tier-select' },
-    premier: { label: 'Premier', dotColor: 'bg-tier-premier', textColor: 'text-tier-premier' },
-    elite: { label: 'Elite', dotColor: 'bg-tier-elite', textColor: 'text-tier-elite' },
-    household: { label: 'Household', dotColor: 'bg-tier-household', textColor: 'text-tier-household' },
+    select: { label: 'Select', Icon: Star },
+    premier: { label: 'Premier', Icon: Crown },
+    elite: { label: 'Elite', Icon: Gem },
+    household: { label: 'Household', Icon: Users },
   };
 
   const config = tierConfig[tier];
+  const IconComponent = config.Icon;
 
   return (
     <div className={`flex items-center gap-2 ${className}`}>
-      <div className={`w-2 h-2 rounded-full ${config.dotColor}`} />
-      <span className={`text-sm font-serif font-medium ${config.textColor}`}>
+      <IconComponent className="w-4 h-4 text-muted-foreground" />
+      <span className="text-sm font-serif font-medium text-foreground">
         {config.label}
       </span>
     </div>

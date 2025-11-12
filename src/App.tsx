@@ -7,6 +7,7 @@ import { Toaster as HotToaster } from "react-hot-toast";
 import { AuthProvider } from "./contexts/AuthContext";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import Login from "./pages/Login";
+import StaffLogin from "./pages/staff/Login";
 import Register from "./pages/Register";
 import Dashboard from "./pages/customer/Dashboard";
 import QRCode from "./pages/customer/QRCode";
@@ -36,6 +37,7 @@ const App = () => (
           <Routes>
             <Route path="/" element={<Navigate to="/login" replace />} />
             <Route path="/login" element={<Login />} />
+            <Route path="/staff" element={<StaffLogin />} />
             <Route path="/register" element={<Register />} />
             
             {/* Customer Routes */}

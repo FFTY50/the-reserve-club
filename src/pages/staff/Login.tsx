@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import bottlesImage from '@/assets/bottles-vino.jpeg';
 import logoImage from '@/assets/vino-sabor-logo.png';
 
-export default function Login() {
+export default function StaffLogin() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -45,8 +45,8 @@ export default function Login() {
 
           <div className="bg-card/50 backdrop-blur-sm border border-border rounded-lg p-8">
             <div className="text-center mb-8">
-              <h1 className="text-3xl font-serif text-primary mb-2">Welcome Back</h1>
-              <p className="text-sm text-muted-foreground">Access Your Reserve Club Account</p>
+              <h1 className="text-3xl font-serif text-primary mb-2">Staff Portal</h1>
+              <p className="text-sm text-muted-foreground">Operations Access</p>
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-6">
@@ -86,22 +86,15 @@ export default function Login() {
             </form>
 
             <div className="mt-6 space-y-4">
-              <Button
-                variant="outline"
-                className="w-full border-border hover:bg-accent/50"
-                type="button"
-              >
-                Magic Link Sign In
-              </Button>
-
-              <div className="text-center text-sm space-y-2">
-                <Link to="/register" className="block text-primary hover:underline font-serif">
-                  Need an account? Sign up
-                </Link>
-                <Link to="/staff" className="block text-muted-foreground hover:text-primary transition-colors">
-                  Staff Login →
+              <div className="text-center text-sm">
+                <Link to="/" className="text-muted-foreground hover:text-primary transition-colors">
+                  ← Back to Customer Login
                 </Link>
               </div>
+
+              <p className="text-xs text-center text-muted-foreground">
+                Staff access only. Contact administrator for credentials.
+              </p>
             </div>
           </div>
         </div>

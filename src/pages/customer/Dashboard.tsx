@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription } from '@/components/ui/alert-dialog';
-import { QrCode, History, User, Clock, Calendar } from 'lucide-react';
+import { QrCode, History, User, Clock, Calendar, LogOut } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 
 interface CustomerData {
@@ -350,17 +350,33 @@ export default function Dashboard() {
   return (
     <div className="min-h-screen pb-20 md:pb-8">
       {/* Header */}
-      <div className="bg-card border-b border-border px-4 py-4">
-        <div className="max-w-2xl mx-auto flex justify-between items-center">
-          <div>
-            <h1 className="text-2xl md:text-3xl font-serif">Welcome Back, {firstName}!</h1>
-            <div className="flex items-center gap-2 mt-1">
-              <TierBadge tier={customerData.tier} />
+      <div className="bg-card border-b border-border px-4 py-3 md:py-4">
+        <div className="max-w-2xl mx-auto">
+          <div className="flex justify-between items-start md:items-center gap-2">
+            <div className="flex-1 min-w-0">
+              <h1 className="text-xl md:text-3xl font-serif truncate">Welcome Back, {firstName}!</h1>
+              <div className="mt-2">
+                <TierBadge tier={customerData.tier} />
+              </div>
             </div>
+            <Button 
+              variant="ghost" 
+              size="icon"
+              onClick={signOut} 
+              className="md:hidden flex-shrink-0"
+              aria-label="Sign out"
+            >
+              <LogOut className="h-5 w-5" />
+            </Button>
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              onClick={signOut} 
+              className="hidden md:flex text-sm flex-shrink-0"
+            >
+              Sign Out
+            </Button>
           </div>
-          <Button variant="ghost" size="sm" onClick={signOut} className="text-xs md:text-sm">
-            Sign Out
-          </Button>
         </div>
       </div>
 

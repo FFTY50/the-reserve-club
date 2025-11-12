@@ -85,15 +85,7 @@ export default function Login() {
               </Button>
             </form>
 
-            <div className="mt-6 space-y-4">
-              <Button
-                variant="outline"
-                className="w-full border-border hover:bg-accent/50"
-                type="button"
-              >
-                Magic Link Sign In
-              </Button>
-
+            <div className="mt-6">
               <div className="text-center text-sm space-y-2">
                 <Link to="/register" className="block text-primary hover:underline font-serif">
                   Need an account? Sign up

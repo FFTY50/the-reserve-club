@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import bottlesImage from '@/assets/bottles-vino.jpeg';
-import logoImage from '@/assets/vino-sabor-logo.png';
+import logoImage from '@/assets/vino-logo-trans.png';
 
 export default function Login() {
   const [email, setEmail] = useState('');

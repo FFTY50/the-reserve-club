@@ -6,13 +6,13 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import bottlesImage from '@/assets/bottles-vino.jpeg';
 import logoImage from '@/assets/vino-logo-trans.png';
-
 export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
-  const { signIn } = useAuth();
-
+  const {
+    signIn
+  } = useAuth();
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -24,16 +24,10 @@ export default function Login() {
       setLoading(false);
     }
   };
-
-  return (
-    <div className="flex min-h-screen">
+  return <div className="flex min-h-screen">
       {/* Left side - Image */}
       <div className="hidden lg:flex lg:w-1/2 relative">
-        <img
-          src={bottlesImage}
-          alt="Luxury wine bottles"
-          className="absolute inset-0 w-full h-full object-cover"
-        />
+        <img src={bottlesImage} alt="Luxury wine bottles" className="absolute inset-0 w-full h-full object-cover" />
       </div>
 
       {/* Right side - Login Form */}
@@ -52,34 +46,15 @@ export default function Login() {
             <form onSubmit={handleSubmit} className="space-y-6">
               <div className="space-y-2">
                 <Label htmlFor="email" className="text-foreground">Email</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  placeholder="name@example.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                  className="bg-background/50 border-border"
-                />
+                <Input id="email" type="email" placeholder="name@example.com" value={email} onChange={e => setEmail(e.target.value)} required className="bg-background/50 border-border" />
               </div>
 
               <div className="space-y-2">
                 <Label htmlFor="password" className="text-foreground">Password</Label>
-                <Input
-                  id="password"
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                  className="bg-background/50 border-border"
-                />
+                <Input id="password" type="password" value={password} onChange={e => setPassword(e.target.value)} required className="bg-background/50 border-border" />
               </div>
 
-              <Button 
-                type="submit" 
-                className="w-full bg-primary text-primary-foreground hover:bg-primary/90" 
-                disabled={loading}
-              >
+              <Button type="submit" className="w-full bg-primary text-primary-foreground hover:bg-primary/90" disabled={loading}>
                 {loading ? 'Signing in...' : 'Sign In'}
               </Button>
             </form>
@@ -89,14 +64,11 @@ export default function Login() {
                 <Link to="/register" className="block text-primary hover:underline font-serif">
                   Need an account? Sign up
                 </Link>
-                <Link to="/staff" className="block text-muted-foreground hover:text-primary transition-colors">
-                  Staff Login →
-                </Link>
+                
               </div>
             </div>
           </div>
         </div>
       </div>
-    </div>
-  );
+    </div>;
 }

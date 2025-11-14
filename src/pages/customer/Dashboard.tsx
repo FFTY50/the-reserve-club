@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription } from '@/components/ui/alert-dialog';
-import { QrCode, History, User, Clock, Calendar, LogOut } from 'lucide-react';
+import { QrCode, History, User, Clock, Calendar, LogOut, CreditCard } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 
 interface CustomerData {
@@ -442,6 +442,12 @@ export default function Dashboard() {
                 Account Settings
               </Button>
             </Link>
+            <a href="https://billing.stripe.com/p/login/9B600c6Bf2M89783ab6Na00" target="_blank" rel="noopener noreferrer">
+              <Button variant="ghost" className="w-full justify-start h-14 text-base" size="lg">
+                <CreditCard className="h-5 w-5 mr-3" />
+                Manage Subscription
+              </Button>
+            </a>
           </CardContent>
         </Card>
 

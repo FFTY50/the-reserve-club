@@ -19,20 +19,41 @@ Deno.serve(async (req) => {
     // Verify user authentication
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) {
-      return new Response(JSON.stringify({ error: 'No authorization header' }), {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
         status: 401,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
-    const { customer_id } = await req.json();
+    // Get authenticated user
+    const { data: { user }, error: authError } = await supabase.auth.getUser(
+      authHeader.replace('Bearer ', '')
+    );
 
-    if (!customer_id) {
-      return new Response(JSON.stringify({ error: 'customer_id is required' }), {
-        status: 400,
+    if (authError || !user) {
+      console.error('Auth error:', authError);
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+        status: 401,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
+
+    // Look up customer_id from authenticated user (eliminates IDOR vulnerability)
+    const { data: customer, error: customerError } = await supabase
+      .from('customers')
+      .select('id')
+      .eq('user_id', user.id)
+      .single();
+
+    if (customerError || !customer) {
+      console.error('Customer lookup error:', customerError);
+      return new Response(JSON.stringify({ error: 'Customer not found' }), {
+        status: 404,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    const customer_id = customer.id;
 
     // Call the database function to get available pours
     const { data, error } = await supabase.rpc('get_available_pours', {

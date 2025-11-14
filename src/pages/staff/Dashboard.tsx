@@ -46,39 +46,27 @@ export default function StaffDashboard() {
   const fetchRecentCustomers = async () => {
     setLoading(true);
     try {
-      // Get recent customers by querying profiles and joining customer data
+      // Get recent customers using secure view (excludes sensitive data)
       const { data: profiles, error } = await supabase
-        .from('profiles')
-        .select(`
-          id,
-          first_name,
-          last_name,
-          email,
-          customers!customers_user_id_fkey (
-            id,
-            tier,
-            status,
-            pours_balance,
-            member_since
-          )
-        `)
-        .not('customers', 'is', null)
-        .eq('customers.status', 'active')
-        .order('customers(member_since)', { ascending: false })
+        .from('staff_profile_view' as any)
+        .select('*')
+        .not('tier', 'is', null)
+        .eq('customer_status', 'active')
+        .order('member_since', { ascending: false })
         .limit(5);
 
       if (error) throw error;
       
       // Transform to match CustomerResult interface
       const transformed = profiles?.map((p: any) => ({
-        id: p.customers?.id,
+        id: p.id,
         user_id: p.id,
-        tier: p.customers?.tier,
-        status: p.customers?.status,
+        tier: p.tier,
+        status: p.customer_status,
         profiles: {
           first_name: p.first_name,
           last_name: p.last_name,
-          email: p.email
+          email: '' // Excluded for security
         }
       })) || [];
       
@@ -93,38 +81,26 @@ export default function StaffDashboard() {
   const handleSearch = async () => {
     setLoading(true);
     try {
-      // Search profiles and get associated customer data
+      // Search profiles using secure view (excludes sensitive data)
       const { data: profiles, error } = await supabase
-        .from('profiles')
-        .select(`
-          id,
-          first_name,
-          last_name,
-          email,
-          customers!customers_user_id_fkey (
-            id,
-            tier,
-            status,
-            pours_balance,
-            member_since
-          )
-        `)
-        .or(`first_name.ilike.%${searchTerm}%,last_name.ilike.%${searchTerm}%,email.ilike.%${searchTerm}%`)
-        .not('customers', 'is', null)
-        .eq('customers.status', 'active');
+        .from('staff_profile_view' as any)
+        .select('*')
+        .or(`first_name.ilike.%${searchTerm}%,last_name.ilike.%${searchTerm}%`)
+        .not('tier', 'is', null)
+        .eq('customer_status', 'active');
 
       if (error) throw error;
       
       // Transform to match CustomerResult interface
       const transformed = profiles?.map((p: any) => ({
-        id: p.customers?.id,
+        id: p.id,
         user_id: p.id,
-        tier: p.customers?.tier,
-        status: p.customers?.status,
+        tier: p.tier,
+        status: p.customer_status,
         profiles: {
           first_name: p.first_name,
           last_name: p.last_name,
-          email: p.email
+          email: '' // Excluded for security
         }
       })) || [];
       

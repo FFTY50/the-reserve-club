@@ -17,8 +17,20 @@ type MembershipApplication = Database['public']['Tables']['membership_applicatio
 type Profile = Database['public']['Tables']['profiles']['Row'];
 type TierDefinition = Database['public']['Tables']['tier_definitions']['Row'];
 
+// Staff profile view excludes sensitive data (email, phone)
+interface StaffProfileView {
+  id: string;
+  first_name: string | null;
+  last_name: string | null;
+  is_active: boolean | null;
+  created_at: string | null;
+  tier: 'select' | 'premier' | 'elite' | 'household' | null;
+  customer_status: string | null;
+  member_since: string | null;
+}
+
 interface ApplicationWithProfile extends MembershipApplication {
-  profile: Profile;
+  profile: StaffProfileView;
 }
 
 export default function ApplicationDetail() {
@@ -49,9 +61,9 @@ export default function ApplicationDetail() {
 
       if (appError) throw appError;
 
-      // Fetch profile
+      // Fetch profile using secure view
       const { data: profileData, error: profileError } = await supabase
-        .from('profiles')
+        .from('staff_profile_view' as any)
         .select('*')
         .eq('id', appData.user_id)
         .single();
@@ -60,7 +72,7 @@ export default function ApplicationDetail() {
 
       const combined = {
         ...appData,
-        profile: profileData
+        profile: profileData as unknown as StaffProfileView
       };
 
       setApplication(combined as ApplicationWithProfile);
@@ -220,7 +232,7 @@ export default function ApplicationDetail() {
     );
   }
 
-  const profile = application.profile as Profile;
+  const profile = application.profile;
   const preferences = application.preferences as Record<string, any>;
 
   return (
@@ -243,8 +255,7 @@ export default function ApplicationDetail() {
             <CardTitle className="text-2xl">
               {profile.first_name} {profile.last_name}
             </CardTitle>
-            <p className="text-muted-foreground">{profile.email}</p>
-            {profile.phone && <p className="text-muted-foreground">{profile.phone}</p>}
+            {/* Email and phone hidden for staff security - available via manager access only */}
           </CardHeader>
         </Card>
 

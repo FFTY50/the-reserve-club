@@ -14,8 +14,20 @@ import type { Database } from '@/integrations/supabase/types';
 type MembershipApplication = Database['public']['Tables']['membership_applications']['Row'];
 type Profile = Database['public']['Tables']['profiles']['Row'];
 
+// Staff profile view excludes sensitive data (email, phone)
+interface StaffProfileView {
+  id: string;
+  first_name: string | null;
+  last_name: string | null;
+  is_active: boolean | null;
+  created_at: string | null;
+  tier: 'select' | 'premier' | 'elite' | 'household' | null;
+  customer_status: string | null;
+  member_since: string | null;
+}
+
 interface ApplicationWithProfile extends MembershipApplication {
-  profile: Profile;
+  profile: StaffProfileView;
 }
 
 export default function StaffApplications() {
@@ -45,10 +57,10 @@ export default function StaffApplications() {
 
       if (appsError) throw appsError;
 
-      // Fetch profiles for all user_ids
+      // Fetch profiles for all user_ids using secure view
       const userIds = appsData.map(app => app.user_id);
       const { data: profilesData, error: profilesError } = await supabase
-        .from('profiles')
+        .from('staff_profile_view' as any)
         .select('*')
         .in('id', userIds);
 
@@ -57,7 +69,7 @@ export default function StaffApplications() {
       // Combine the data
       const combined = appsData.map(app => ({
         ...app,
-        profile: profilesData.find(p => p.id === app.user_id)!
+        profile: profilesData.find((p: any) => p.id === app.user_id) as unknown as StaffProfileView
       }));
 
       setApplications(combined as ApplicationWithProfile[]);
@@ -86,15 +98,14 @@ export default function StaffApplications() {
       filtered = filtered.filter(app => app.selected_tier === tierFilter);
     }
 
-    // Search filter
+    // Search filter (email removed for security)
     if (searchTerm) {
       filtered = filtered.filter(app => {
-        const profile = app.profile as Profile;
+        const profile = app.profile;
         const searchLower = searchTerm.toLowerCase();
         return (
           profile.first_name?.toLowerCase().includes(searchLower) ||
-          profile.last_name?.toLowerCase().includes(searchLower) ||
-          profile.email.toLowerCase().includes(searchLower)
+          profile.last_name?.toLowerCase().includes(searchLower)
         );
       });
     }
@@ -213,7 +224,7 @@ export default function StaffApplications() {
             </Card>
           ) : (
             filteredApplications.map((application) => {
-              const profile = application.profile as Profile;
+              const profile = application.profile;
               return (
                 <Card key={application.id} className="hover:shadow-lg transition-shadow">
                   <CardHeader>
@@ -222,7 +233,7 @@ export default function StaffApplications() {
                         <CardTitle className="text-xl">
                           {profile.first_name} {profile.last_name}
                         </CardTitle>
-                        <p className="text-sm text-muted-foreground mt-1">{profile.email}</p>
+                        {/* Email hidden for staff security */}
                       </div>
                       <div className="flex flex-col items-end gap-2">
                         <Badge className={getStatusColor(application.status)}>

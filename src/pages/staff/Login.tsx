@@ -87,13 +87,20 @@ export default function StaffLogin() {
 
             <div className="mt-6 space-y-4">
               <div className="text-center text-sm">
+                <span className="text-muted-foreground">Need an account? </span>
+                <Link to="/staff/register" className="text-primary hover:underline">
+                  Register as staff
+                </Link>
+              </div>
+
+              <div className="text-center text-sm">
                 <Link to="/" className="text-muted-foreground hover:text-primary transition-colors">
                   ← Back to Customer Login
                 </Link>
               </div>
 
               <p className="text-xs text-center text-muted-foreground">
-                Staff access only. Contact administrator for credentials.
+                Staff access requires admin approval.
               </p>
             </div>
           </div>

@@ -7,8 +7,10 @@ import { toast } from 'react-hot-toast';
 interface AuthContextType {
   user: User | null;
   userRole: 'customer' | 'staff' | null;
+  isApproved: boolean;
   loading: boolean;
   signUp: (email: string, password: string, firstName: string, lastName: string, phone?: string) => Promise<void>;
+  signUpStaff: (email: string, password: string, firstName: string, lastName: string, phone?: string) => Promise<void>;
   signIn: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
 }
@@ -18,6 +20,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [userRole, setUserRole] = useState<'customer' | 'staff' | null>(null);
+  const [isApproved, setIsApproved] = useState(false);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
@@ -52,14 +55,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const { data, error } = await supabase
         .from('user_roles')
-        .select('role')
+        .select('role, is_approved')
         .eq('user_id', userId)
         .single();
 
       if (error) throw error;
       setUserRole(data.role as 'customer' | 'staff');
+      setIsApproved(data.is_approved || false);
     } catch (error) {
       setUserRole(null);
+      setIsApproved(false);
     } finally {
       setLoading(false);
     }
@@ -92,6 +97,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const signUpStaff = async (email: string, password: string, firstName: string, lastName: string, phone?: string) => {
+    try {
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            first_name: firstName,
+            last_name: lastName,
+            phone: phone || '',
+            role: 'staff',
+          },
+        },
+      });
+
+      if (error) throw error;
+
+      if (data.user) {
+        toast.success('Staff account created! Please wait for admin approval.');
+        navigate('/staff');
+      }
+    } catch (error: any) {
+      toast.error(error.message || 'Error creating account');
+      throw error;
+    }
+  };
+
   const signIn = async (email: string, password: string) => {
     try {
       const { data, error } = await supabase.auth.signInWithPassword({
@@ -107,11 +139,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         // Navigate based on role
         const { data: roleData } = await supabase
           .from('user_roles')
-          .select('role')
+          .select('role, is_approved')
           .eq('user_id', data.user.id)
           .single();
 
         if (roleData?.role === 'staff') {
+          if (!roleData.is_approved) {
+            toast.error('Your staff account is pending approval');
+            await supabase.auth.signOut();
+            return;
+          }
           navigate('/staff/dashboard');
         } else {
           navigate('/dashboard');
@@ -132,6 +169,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       
       setUser(null);
       setUserRole(null);
+      setIsApproved(false);
       navigate('/login');
       toast.success('Signed out successfully');
     } catch (error: any) {
@@ -141,7 +179,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, userRole, loading, signUp, signIn, signOut }}>
+    <AuthContext.Provider value={{ user, userRole, isApproved, loading, signUp, signUpStaff, signIn, signOut }}>
       {children}
     </AuthContext.Provider>
   );

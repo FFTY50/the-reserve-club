@@ -59,9 +59,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         .eq('user_id', userId)
         .single();
 
-      if (error) throw error;
-      setUserRole(data.role as 'customer' | 'staff');
-      setIsApproved(data.is_approved || false);
+      if (error || !data) throw error || new Error('No data returned');
+      const roleData = data as any; // Type assertion needed due to outdated generated types
+      setUserRole(roleData.role as 'customer' | 'staff');
+      setIsApproved(roleData.is_approved || false);
     } catch (error) {
       setUserRole(null);
       setIsApproved(false);
@@ -143,8 +144,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           .eq('user_id', data.user.id)
           .single();
 
-        if (roleData?.role === 'staff') {
-          if (!roleData.is_approved) {
+        if (roleData && 'role' in roleData && roleData.role === 'staff') {
+          if ('is_approved' in roleData && !roleData.is_approved) {
             toast.error('Your staff account is pending approval');
             await supabase.auth.signOut();
             return;

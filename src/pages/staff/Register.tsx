@@ -1,30 +1,46 @@
-import { useState } from 'react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Link } from 'react-router-dom';
+import { useToast } from '@/hooks/use-toast';
 import bottlesImage from '@/assets/bottles-vino.jpeg';
 import logoImage from '@/assets/vino-logo-trans.png';
 
-export default function StaffRegister() {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [firstName, setFirstName] = useState('');
-  const [lastName, setLastName] = useState('');
-  const [phone, setPhone] = useState('');
-  const [loading, setLoading] = useState(false);
-  const { signUpStaff } = useAuth();
+const staffRegisterSchema = z.object({
+  email: z.string().email('Invalid email address').max(255, 'Email too long'),
+  password: z.string()
+    .min(8, 'Password must be at least 8 characters')
+    .max(128, 'Password too long')
+    .regex(/[A-Z]/, 'Password must contain at least one uppercase letter')
+    .regex(/[a-z]/, 'Password must contain at least one lowercase letter')
+    .regex(/[0-9]/, 'Password must contain at least one number'),
+  firstName: z.string().trim().min(1, 'First name is required').max(100, 'First name too long'),
+  lastName: z.string().trim().min(1, 'Last name is required').max(100, 'Last name too long'),
+  phone: z.string().regex(/^\+?[1-9]\d{1,14}$/, 'Invalid phone number format').optional().or(z.literal('')),
+});
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
+type StaffRegisterForm = z.infer<typeof staffRegisterSchema>;
+
+export default function StaffRegister() {
+  const { signUpStaff } = useAuth();
+  const { toast } = useToast();
+  const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<StaffRegisterForm>({
+    resolver: zodResolver(staffRegisterSchema),
+  });
+
+  const onSubmit = async (data: StaffRegisterForm) => {
     try {
-      await signUpStaff(email, password, firstName, lastName, phone);
+      await signUpStaff(data.email, data.password, data.firstName, data.lastName, data.phone || undefined);
     } catch (error) {
-      console.error('Registration error:', error);
-    } finally {
-      setLoading(false);
+      toast({
+        title: 'Registration Failed',
+        description: error instanceof Error ? error.message : 'An error occurred during registration',
+        variant: 'destructive',
+      });
     }
   };
 
@@ -55,27 +71,29 @@ export default function StaffRegister() {
             </p>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-6">
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="firstName">First Name</Label>
                 <Input
                   id="firstName"
                   type="text"
-                  value={firstName}
-                  onChange={(e) => setFirstName(e.target.value)}
-                  required
+                  {...register('firstName')}
                 />
+                {errors.firstName && (
+                  <p className="text-sm text-destructive">{errors.firstName.message}</p>
+                )}
               </div>
               <div className="space-y-2">
                 <Label htmlFor="lastName">Last Name</Label>
                 <Input
                   id="lastName"
                   type="text"
-                  value={lastName}
-                  onChange={(e) => setLastName(e.target.value)}
-                  required
+                  {...register('lastName')}
                 />
+                {errors.lastName && (
+                  <p className="text-sm text-destructive">{errors.lastName.message}</p>
+                )}
               </div>
             </div>
 
@@ -84,10 +102,11 @@ export default function StaffRegister() {
               <Input
                 id="email"
                 type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
+                {...register('email')}
               />
+              {errors.email && (
+                <p className="text-sm text-destructive">{errors.email.message}</p>
+              )}
             </div>
 
             <div className="space-y-2">
@@ -95,9 +114,12 @@ export default function StaffRegister() {
               <Input
                 id="phone"
                 type="tel"
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
+                placeholder="+1234567890"
+                {...register('phone')}
               />
+              {errors.phone && (
+                <p className="text-sm text-destructive">{errors.phone.message}</p>
+              )}
             </div>
 
             <div className="space-y-2">
@@ -105,29 +127,31 @@ export default function StaffRegister() {
               <Input
                 id="password"
                 type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
+                {...register('password')}
               />
+              {errors.password && (
+                <p className="text-sm text-destructive">{errors.password.message}</p>
+              )}
             </div>
 
-            <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? 'Creating Account...' : 'Register'}
+            <Button type="submit" className="w-full" disabled={isSubmitting}>
+              {isSubmitting ? 'Creating account...' : 'Create Staff Account'}
             </Button>
 
-            <div className="text-center text-sm">
-              <span className="text-muted-foreground">Already have an account? </span>
-              <Link to="/staff" className="text-primary hover:underline">
-                Sign in
-              </Link>
+            <div className="text-center text-sm space-y-2">
+              <p className="text-muted-foreground">
+                Already a staff member?{' '}
+                <Link to="/staff/login" className="text-primary hover:underline font-medium">
+                  Sign in
+                </Link>
+              </p>
+              <p className="text-muted-foreground">
+                <Link to="/login" className="text-primary hover:underline font-medium">
+                  Back to customer login
+                </Link>
+              </p>
             </div>
           </form>
-
-          <div className="text-center">
-            <Link to="/login" className="text-sm text-muted-foreground hover:text-primary">
-              ← Back to customer login
-            </Link>
-          </div>
         </div>
       </div>
     </div>

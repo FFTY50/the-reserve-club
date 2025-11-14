@@ -51,8 +51,9 @@ serve(async (req) => {
     const validationResult = requestSchema.safeParse(body);
     
     if (!validationResult.success) {
+      console.error('Validation failed:', validationResult.error.format());
       return new Response(
-        JSON.stringify({ error: 'Invalid request data', details: validationResult.error.format() }),
+        JSON.stringify({ error: 'Invalid request data' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -81,12 +82,19 @@ serve(async (req) => {
       .single();
 
     if (tierError || !tier) {
-      console.error('Tier fetch error:', tierError);
-      throw new Error(`Tier "${tierName}" not found`);
+      console.error('Tier fetch failed for tier:', tierName);
+      return new Response(
+        JSON.stringify({ error: 'Unable to process request' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
     if (!tier.stripe_price_id) {
-      throw new Error(`Stripe Price ID not configured for tier "${tierName}". Please configure Stripe products first.`);
+      console.error('Missing Stripe Price ID for tier:', tierName);
+      return new Response(
+        JSON.stringify({ error: 'Membership tier not available' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
     // Fetch user profile for email and name
@@ -97,8 +105,11 @@ serve(async (req) => {
       .single();
 
     if (profileError || !profile) {
-      console.error('Profile fetch error:', profileError);
-      throw new Error('User profile not found');
+      console.error('Profile fetch failed');
+      return new Response(
+        JSON.stringify({ error: 'Unable to process request' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
     const origin = req.headers.get('origin') || 'http://localhost:8080';

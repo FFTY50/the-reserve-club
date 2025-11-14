@@ -72,8 +72,8 @@ serve(async (req) => {
         // Validate metadata
         const metadataResult = metadataSchema.safeParse(session.metadata);
         if (!metadataResult.success) {
-          console.error('Invalid metadata:', metadataResult.error.format());
-          throw new Error(`Invalid metadata: ${metadataResult.error.issues[0].message}`);
+          console.error('Metadata validation failed');
+          throw new Error('Invalid session metadata');
         }
 
         const { applicationId, userId, tierName } = metadataResult.data;
@@ -97,8 +97,8 @@ serve(async (req) => {
           .single();
 
         if (tierError || !tier) {
-          console.error('Failed to fetch tier:', tierError);
-          throw new Error(`Tier "${tierName}" not found`);
+          console.error('Tier fetch failed');
+          throw new Error('Membership tier not found');
         }
 
         // Update application status to approved

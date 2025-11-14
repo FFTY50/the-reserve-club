@@ -40,13 +40,22 @@ serve(async (req) => {
 
     const { data: roleData, error: roleError } = await supabaseAdmin
       .from('user_roles')
-      .select('role')
+      .select('role, is_approved')
       .eq('user_id', user.id)
       .single();
 
     if (roleError || !roleData || roleData.role !== 'staff') {
       return new Response(
-        JSON.stringify({ error: 'Forbidden: Staff access required' }),
+        JSON.stringify({ error: 'Access denied' }),
+        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Verify staff is approved
+    if (!roleData.is_approved) {
+      console.warn('Unapproved staff access attempt:', user.id);
+      return new Response(
+        JSON.stringify({ error: 'Access denied' }),
         { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -108,7 +117,7 @@ serve(async (req) => {
     } catch (jwtError) {
       console.error('JWT verification failed');
       return new Response(
-        JSON.stringify({ error: 'Invalid or expired token' }),
+        JSON.stringify({ error: 'Invalid token' }),
         {
           status: 401,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -116,9 +125,9 @@ serve(async (req) => {
       );
     }
   } catch (error) {
-    console.error('Token verification error');
+    console.error('Request processing failed');
     return new Response(
-      JSON.stringify({ error: 'Internal server error' }),
+      JSON.stringify({ error: 'Unable to process request' }),
       {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },

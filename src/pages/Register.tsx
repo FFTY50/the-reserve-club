@@ -1,43 +1,51 @@
-import { useState } from 'react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
 import { Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
+import { useToast } from '@/hooks/use-toast';
 import logoImage from '@/assets/vino-sabor-logo.png';
 import bottlesImage from '@/assets/bottles-vino.jpeg';
 
+const registerSchema = z.object({
+  email: z.string().email('Invalid email address').max(255, 'Email too long'),
+  password: z.string()
+    .min(8, 'Password must be at least 8 characters')
+    .max(128, 'Password too long')
+    .regex(/[A-Z]/, 'Password must contain at least one uppercase letter')
+    .regex(/[a-z]/, 'Password must contain at least one lowercase letter')
+    .regex(/[0-9]/, 'Password must contain at least one number'),
+  confirmPassword: z.string(),
+  firstName: z.string().trim().min(1, 'First name is required').max(100, 'First name too long'),
+  lastName: z.string().trim().min(1, 'Last name is required').max(100, 'Last name too long'),
+  phone: z.string().regex(/^\+?[1-9]\d{1,14}$/, 'Invalid phone number format').optional().or(z.literal('')),
+}).refine((data) => data.password === data.confirmPassword, {
+  message: "Passwords don't match",
+  path: ["confirmPassword"],
+});
+
+type RegisterForm = z.infer<typeof registerSchema>;
+
 export default function Register() {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [firstName, setFirstName] = useState('');
-  const [lastName, setLastName] = useState('');
-  const [phone, setPhone] = useState('');
-  const [loading, setLoading] = useState(false);
   const { signUp } = useAuth();
+  const { toast } = useToast();
+  const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<RegisterForm>({
+    resolver: zodResolver(registerSchema),
+  });
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (password !== confirmPassword) {
-      alert('Passwords do not match');
-      return;
-    }
-
-    if (password.length < 8) {
-      alert('Password must be at least 8 characters');
-      return;
-    }
-
-    setLoading(true);
+  const onSubmit = async (data: RegisterForm) => {
     try {
-      await signUp(email, password, firstName, lastName, phone);
+      await signUp(data.email, data.password, data.firstName, data.lastName, data.phone || undefined);
     } catch (error) {
-      // Error handled in context
-    } finally {
-      setLoading(false);
+      toast({
+        title: 'Registration Failed',
+        description: error instanceof Error ? error.message : 'An error occurred during registration',
+        variant: 'destructive',
+      });
     }
   };
 
@@ -68,29 +76,31 @@ export default function Register() {
 
           <Card className="border-none shadow-none bg-transparent">
             <CardContent className="pt-6">
-              <form onSubmit={handleSubmit} className="space-y-4">
+              <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="firstName" className="text-foreground">First Name</Label>
                     <Input
                       id="firstName"
                       placeholder="John"
-                      value={firstName}
-                      onChange={(e) => setFirstName(e.target.value)}
-                      required
+                      {...register('firstName')}
                       className="bg-background/50 border-border"
                     />
+                    {errors.firstName && (
+                      <p className="text-sm text-destructive">{errors.firstName.message}</p>
+                    )}
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="lastName" className="text-foreground">Last Name</Label>
                     <Input
                       id="lastName"
                       placeholder="Doe"
-                      value={lastName}
-                      onChange={(e) => setLastName(e.target.value)}
-                      required
+                      {...register('lastName')}
                       className="bg-background/50 border-border"
                     />
+                    {errors.lastName && (
+                      <p className="text-sm text-destructive">{errors.lastName.message}</p>
+                    )}
                   </div>
                 </div>
                 <div className="space-y-2">
@@ -99,59 +109,60 @@ export default function Register() {
                     id="email"
                     type="email"
                     placeholder="you@example.com"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    required
+                    {...register('email')}
                     className="bg-background/50 border-border"
                   />
+                  {errors.email && (
+                    <p className="text-sm text-destructive">{errors.email.message}</p>
+                  )}
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="phone" className="text-foreground">Phone (optional)</Label>
                   <Input
                     id="phone"
                     type="tel"
-                    placeholder="(555) 123-4567"
-                    value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
+                    placeholder="+1234567890"
+                    {...register('phone')}
                     className="bg-background/50 border-border"
                   />
+                  {errors.phone && (
+                    <p className="text-sm text-destructive">{errors.phone.message}</p>
+                  )}
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="password" className="text-foreground">Password</Label>
                   <Input
                     id="password"
                     type="password"
-                    placeholder="••••••••"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    required
+                    {...register('password')}
                     className="bg-background/50 border-border"
                   />
+                  {errors.password && (
+                    <p className="text-sm text-destructive">{errors.password.message}</p>
+                  )}
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="confirmPassword" className="text-foreground">Confirm Password</Label>
                   <Input
                     id="confirmPassword"
                     type="password"
-                    placeholder="••••••••"
-                    value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
-                    required
+                    {...register('confirmPassword')}
                     className="bg-background/50 border-border"
                   />
+                  {errors.confirmPassword && (
+                    <p className="text-sm text-destructive">{errors.confirmPassword.message}</p>
+                  )}
                 </div>
-                <Button type="submit" className="w-full font-serif" disabled={loading}>
-                  {loading ? 'Creating account...' : 'Create Account'}
+                <Button type="submit" className="w-full" disabled={isSubmitting}>
+                  {isSubmitting ? 'Creating account...' : 'Create account'}
                 </Button>
-              </form>
-              <div className="mt-6 text-center text-sm space-y-2">
-                <p className="text-muted-foreground">
+                <div className="text-center text-sm text-muted-foreground mt-4">
                   Already have an account?{' '}
                   <Link to="/login" className="text-primary hover:underline font-medium">
                     Sign in
                   </Link>
-                </p>
-              </div>
+                </div>
+              </form>
             </CardContent>
           </Card>
         </div>

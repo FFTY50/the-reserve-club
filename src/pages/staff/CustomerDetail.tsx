@@ -82,10 +82,10 @@ export default function CustomerDetail() {
         return;
       }
 
-      // Fetch profile separately
+      // Fetch profile using secure view (excludes sensitive email/phone)
       const { data: profile } = await supabase
-        .from('profiles')
-        .select('first_name, last_name, email, phone')
+        .from('staff_profile_view' as any)
+        .select('first_name, last_name')
         .eq('id', baseCustomer.user_id)
         .maybeSingle();
 
@@ -104,10 +104,10 @@ export default function CustomerDetail() {
         total_pours_lifetime: baseCustomer.total_pours_lifetime,
         member_since: baseCustomer.member_since,
         profiles: {
-          first_name: profile?.first_name || '',
-          last_name: profile?.last_name || '',
-          email: profile?.email || '',
-          phone: profile?.phone || ''
+          first_name: (profile as any)?.first_name || '',
+          last_name: (profile as any)?.last_name || '',
+          email: '',
+          phone: ''
         }
       };
 

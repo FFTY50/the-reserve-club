@@ -29,26 +29,38 @@ serve(async (req) => {
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
+    // Enforce webhook secret is configured
+    if (!webhookSecret) {
+      console.error('STRIPE_WEBHOOK_SECRET not configured');
+      return new Response(
+        JSON.stringify({ error: 'Webhook configuration error' }),
+        { status: 500, headers: corsHeaders }
+      );
+    }
+
     const signature = req.headers.get('stripe-signature');
+    if (!signature) {
+      console.error('Missing Stripe signature header');
+      return new Response(
+        JSON.stringify({ error: 'Missing signature' }),
+        { status: 400, headers: corsHeaders }
+      );
+    }
+
     const body = await req.text();
 
     let event: Stripe.Event;
 
-    // Verify webhook signature if secret is configured
-    if (webhookSecret && signature) {
-      try {
-        event = await stripe.webhooks.constructEventAsync(body, signature, webhookSecret);
-      } catch (err) {
-        const errorMessage = err instanceof Error ? err.message : 'Unknown error';
-        console.error('Webhook signature verification failed:', errorMessage);
-        return new Response(
-          JSON.stringify({ error: 'Invalid signature' }),
-          { status: 400, headers: corsHeaders }
-        );
-      }
-    } else {
-      event = JSON.parse(body);
-      console.warn('Webhook secret not configured - skipping signature verification');
+    // Always verify webhook signature - no conditional logic
+    try {
+      event = await stripe.webhooks.constructEventAsync(body, signature, webhookSecret);
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+      console.error('Webhook signature verification failed:', errorMessage);
+      return new Response(
+        JSON.stringify({ error: 'Invalid signature' }),
+        { status: 400, headers: corsHeaders }
+      );
     }
 
     console.log('Processing webhook event:', event.type);

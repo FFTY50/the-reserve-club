@@ -8,6 +8,56 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Rate limiting configuration
+const RATE_LIMIT_WINDOW_MS = 60000; // 1 minute
+const MAX_REQUESTS_PER_WINDOW = 5;
+
+async function checkRateLimit(supabase: any, identifier: string, endpoint: string): Promise<boolean> {
+  const key = `${endpoint}:${identifier}`;
+  const now = Date.now();
+  
+  try {
+    // Try to get existing rate limit record
+    const { data: existing } = await supabase
+      .from('rate_limits')
+      .select('count, window_start')
+      .eq('key', key)
+      .single();
+    
+    if (existing) {
+      const windowAge = now - existing.window_start;
+      
+      if (windowAge < RATE_LIMIT_WINDOW_MS) {
+        // Still in current window
+        if (existing.count >= MAX_REQUESTS_PER_WINDOW) {
+          return false; // Rate limited
+        }
+        // Increment count
+        await supabase
+          .from('rate_limits')
+          .update({ count: existing.count + 1 })
+          .eq('key', key);
+      } else {
+        // New window - reset
+        await supabase
+          .from('rate_limits')
+          .update({ count: 1, window_start: now })
+          .eq('key', key);
+      }
+    } else {
+      // Create new record
+      await supabase
+        .from('rate_limits')
+        .insert({ key, count: 1, window_start: now });
+    }
+    
+    return true; // Not rate limited
+  } catch (error) {
+    console.error('Rate limit check failed:', error);
+    return true; // Allow request on error to prevent false positives
+  }
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -40,6 +90,20 @@ serve(async (req) => {
       );
     }
 
+    // Check rate limit (use service role client)
+    const supabaseAdmin = createClient(
+      Deno.env.get('SUPABASE_URL')!,
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+    );
+    
+    const allowed = await checkRateLimit(supabaseAdmin, user.id, 'create-checkout');
+    if (!allowed) {
+      return new Response(
+        JSON.stringify({ error: 'Too many checkout attempts. Please try again later.' }),
+        { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     // Validate input
     const requestSchema = z.object({
       tierName: z.enum(['select', 'premier', 'elite', 'household']),
@@ -68,11 +132,7 @@ serve(async (req) => {
       );
     }
 
-    // Use service role for remaining operations
-    const supabaseAdmin = createClient(
-      Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-    );
+    // Use existing admin client for remaining operations
 
     // Fetch tier definition to get stripe_price_id
     const { data: tier, error: tierError } = await supabaseAdmin

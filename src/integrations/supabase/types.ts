@@ -69,10 +69,24 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "customers_signed_up_by_staff_id_fkey"
+            columns: ["signed_up_by_staff_id"]
+            isOneToOne: false
+            referencedRelation: "staff_profile_view"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "customers_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: true
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "customers_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "staff_profile_view"
             referencedColumns: ["id"]
           },
         ]
@@ -192,6 +206,13 @@ export type Database = {
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "memberships_recorded_by_staff_id_fkey"
+            columns: ["recorded_by_staff_id"]
+            isOneToOne: false
+            referencedRelation: "staff_profile_view"
+            referencedColumns: ["id"]
+          },
         ]
       }
       pours: {
@@ -246,6 +267,13 @@ export type Database = {
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "pours_recorded_by_staff_id_fkey"
+            columns: ["recorded_by_staff_id"]
+            isOneToOne: false
+            referencedRelation: "staff_profile_view"
+            referencedColumns: ["id"]
+          },
         ]
       }
       profiles: {
@@ -281,6 +309,33 @@ export type Database = {
           last_name?: string | null
           phone?: string | null
           updated_at?: string | null
+        }
+        Relationships: []
+      }
+      rate_limits: {
+        Row: {
+          count: number
+          created_at: string | null
+          id: string
+          key: string
+          updated_at: string | null
+          window_start: number
+        }
+        Insert: {
+          count?: number
+          created_at?: string | null
+          id?: string
+          key: string
+          updated_at?: string | null
+          window_start: number
+        }
+        Update: {
+          count?: number
+          created_at?: string | null
+          id?: string
+          key?: string
+          updated_at?: string | null
+          window_start?: number
         }
         Relationships: []
       }
@@ -324,18 +379,21 @@ export type Database = {
         Row: {
           created_at: string | null
           id: string
+          is_approved: boolean
           role: Database["public"]["Enums"]["app_role"]
           user_id: string
         }
         Insert: {
           created_at?: string | null
           id?: string
+          is_approved?: boolean
           role: Database["public"]["Enums"]["app_role"]
           user_id: string
         }
         Update: {
           created_at?: string | null
           id?: string
+          is_approved?: boolean
           role?: Database["public"]["Enums"]["app_role"]
           user_id?: string
         }
@@ -343,9 +401,22 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      staff_profile_view: {
+        Row: {
+          created_at: string | null
+          customer_status: Database["public"]["Enums"]["customer_status"] | null
+          first_name: string | null
+          id: string | null
+          is_active: boolean | null
+          last_name: string | null
+          member_since: string | null
+          tier: Database["public"]["Enums"]["customer_tier"] | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
+      cleanup_old_rate_limits: { Args: never; Returns: undefined }
       get_available_pours: { Args: { customer_uuid: string }; Returns: number }
       has_role: {
         Args: {

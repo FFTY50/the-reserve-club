@@ -28,6 +28,7 @@ import StaffManagement from "./pages/admin/StaffManagement";
 import CustomerManagement from "./pages/admin/CustomerManagement";
 import TierSettings from "./pages/admin/TierSettings";
 import AdminApplications from "./pages/admin/Applications";
+import AdminSetup from "./pages/admin/Setup";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -117,6 +118,7 @@ const App = () => (
             } />
             
             {/* Admin Routes */}
+            <Route path="/admin/setup" element={<AdminSetup />} />
             <Route path="/admin/dashboard" element={
               <ProtectedRoute requiredRole="admin">
                 <AdminDashboard />

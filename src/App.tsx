@@ -23,6 +23,11 @@ import ApplicationDetail from "./pages/staff/ApplicationDetail";
 import CustomerDetail from "./pages/staff/CustomerDetail";
 import AddPour from "./pages/staff/AddPour";
 import AddMembership from "./pages/staff/AddMembership";
+import AdminDashboard from "./pages/admin/Dashboard";
+import StaffManagement from "./pages/admin/StaffManagement";
+import CustomerManagement from "./pages/admin/CustomerManagement";
+import TierSettings from "./pages/admin/TierSettings";
+import AdminApplications from "./pages/admin/Applications";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -108,6 +113,33 @@ const App = () => (
             <Route path="/staff/customers/:id/add-membership" element={
               <ProtectedRoute requiredRole="staff">
                 <AddMembership />
+              </ProtectedRoute>
+            } />
+            
+            {/* Admin Routes */}
+            <Route path="/admin/dashboard" element={
+              <ProtectedRoute requiredRole="admin">
+                <AdminDashboard />
+              </ProtectedRoute>
+            } />
+            <Route path="/admin/staff" element={
+              <ProtectedRoute requiredRole="admin">
+                <StaffManagement />
+              </ProtectedRoute>
+            } />
+            <Route path="/admin/customers" element={
+              <ProtectedRoute requiredRole="admin">
+                <CustomerManagement />
+              </ProtectedRoute>
+            } />
+            <Route path="/admin/tiers" element={
+              <ProtectedRoute requiredRole="admin">
+                <TierSettings />
+              </ProtectedRoute>
+            } />
+            <Route path="/admin/applications" element={
+              <ProtectedRoute requiredRole="admin">
+                <AdminApplications />
               </ProtectedRoute>
             } />
             

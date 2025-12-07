@@ -6,7 +6,7 @@ import { toast } from 'react-hot-toast';
 
 interface AuthContextType {
   user: User | null;
-  userRole: 'customer' | 'staff' | null;
+  userRole: 'customer' | 'staff' | 'admin' | null;
   isApproved: boolean;
   loading: boolean;
   signUp: (email: string, password: string, firstName: string, lastName: string, phone?: string) => Promise<void>;
@@ -19,7 +19,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
-  const [userRole, setUserRole] = useState<'customer' | 'staff' | null>(null);
+  const [userRole, setUserRole] = useState<'customer' | 'staff' | 'admin' | null>(null);
   const [isApproved, setIsApproved] = useState(false);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
@@ -61,7 +61,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (error || !data) throw error || new Error('No data returned');
       const roleData = data as any; // Type assertion needed due to outdated generated types
-      setUserRole(roleData.role as 'customer' | 'staff');
+      setUserRole(roleData.role as 'customer' | 'staff' | 'admin');
       setIsApproved(roleData.is_approved || false);
     } catch (error) {
       setUserRole(null);
@@ -144,13 +144,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           .eq('user_id', data.user.id)
           .single();
 
-        if (roleData && 'role' in roleData && roleData.role === 'staff') {
-          if ('is_approved' in roleData && !roleData.is_approved) {
-            toast.error('Your staff account is pending approval');
-            await supabase.auth.signOut();
-            return;
+        if (roleData && 'role' in roleData) {
+          if (roleData.role === 'admin') {
+            if ('is_approved' in roleData && !roleData.is_approved) {
+              toast.error('Your admin account is pending approval');
+              await supabase.auth.signOut();
+              return;
+            }
+            navigate('/admin/dashboard');
+          } else if (roleData.role === 'staff') {
+            if ('is_approved' in roleData && !roleData.is_approved) {
+              toast.error('Your staff account is pending approval');
+              await supabase.auth.signOut();
+              return;
+            }
+            navigate('/staff/dashboard');
+          } else {
+            navigate('/dashboard');
           }
-          navigate('/staff/dashboard');
         } else {
           navigate('/dashboard');
         }

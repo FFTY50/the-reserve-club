@@ -4,7 +4,9 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, Check, X, Trash2 } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { ArrowLeft, Check, X, Trash2, Plus, UserPlus } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'react-hot-toast';
 import {
@@ -18,6 +20,15 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog';
 
 interface StaffMember {
   id: string;
@@ -36,6 +47,14 @@ export default function StaffManagement() {
   const { signOut } = useAuth();
   const [staff, setStaff] = useState<StaffMember[]>([]);
   const [loading, setLoading] = useState(true);
+  const [addDialogOpen, setAddDialogOpen] = useState(false);
+  const [creating, setCreating] = useState(false);
+  const [newStaff, setNewStaff] = useState({
+    email: '',
+    password: '',
+    firstName: '',
+    lastName: '',
+  });
 
   useEffect(() => {
     fetchStaff();
@@ -127,6 +146,47 @@ export default function StaffManagement() {
     }
   };
 
+  const createStaffAccount = async () => {
+    if (!newStaff.email || !newStaff.password || !newStaff.firstName || !newStaff.lastName) {
+      toast.error('Please fill in all fields');
+      return;
+    }
+
+    if (newStaff.password.length < 8) {
+      toast.error('Password must be at least 8 characters');
+      return;
+    }
+
+    setCreating(true);
+
+    try {
+      const { data, error } = await supabase.functions.invoke('create-staff-account', {
+        body: {
+          email: newStaff.email,
+          password: newStaff.password,
+          firstName: newStaff.firstName,
+          lastName: newStaff.lastName,
+        },
+      });
+
+      if (error) throw error;
+
+      if (data.error) {
+        throw new Error(data.error);
+      }
+
+      toast.success('Staff account created successfully');
+      setAddDialogOpen(false);
+      setNewStaff({ email: '', password: '', firstName: '', lastName: '' });
+      fetchStaff();
+    } catch (error: any) {
+      console.error('Error creating staff:', error);
+      toast.error(error.message || 'Failed to create staff account');
+    } finally {
+      setCreating(false);
+    }
+  };
+
   const pendingStaff = staff.filter(s => !s.is_approved);
   const approvedStaff = staff.filter(s => s.is_approved);
 
@@ -142,7 +202,75 @@ export default function StaffManagement() {
             </Button>
             <h1 className="text-3xl font-serif">Staff Management</h1>
           </div>
-          <Button variant="ghost" size="sm" onClick={signOut}>Sign Out</Button>
+          <div className="flex gap-2">
+            <Dialog open={addDialogOpen} onOpenChange={setAddDialogOpen}>
+              <DialogTrigger asChild>
+                <Button>
+                  <UserPlus className="h-4 w-4 mr-2" />
+                  Add Staff
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Create Staff Account</DialogTitle>
+                  <DialogDescription>
+                    Create a new staff member account. They will be able to log in immediately.
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4 py-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="firstName">First Name</Label>
+                      <Input
+                        id="firstName"
+                        value={newStaff.firstName}
+                        onChange={(e) => setNewStaff({ ...newStaff, firstName: e.target.value })}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="lastName">Last Name</Label>
+                      <Input
+                        id="lastName"
+                        value={newStaff.lastName}
+                        onChange={(e) => setNewStaff({ ...newStaff, lastName: e.target.value })}
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="email">Email</Label>
+                    <Input
+                      id="email"
+                      type="email"
+                      value={newStaff.email}
+                      onChange={(e) => setNewStaff({ ...newStaff, email: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="password">Temporary Password</Label>
+                    <Input
+                      id="password"
+                      type="password"
+                      placeholder="Min. 8 characters"
+                      value={newStaff.password}
+                      onChange={(e) => setNewStaff({ ...newStaff, password: e.target.value })}
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Staff member should change this after first login
+                    </p>
+                  </div>
+                </div>
+                <DialogFooter>
+                  <Button variant="outline" onClick={() => setAddDialogOpen(false)}>
+                    Cancel
+                  </Button>
+                  <Button onClick={createStaffAccount} disabled={creating}>
+                    {creating ? 'Creating...' : 'Create Account'}
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+            <Button variant="ghost" size="sm" onClick={signOut}>Sign Out</Button>
+          </div>
         </div>
 
         {/* Pending Approvals */}

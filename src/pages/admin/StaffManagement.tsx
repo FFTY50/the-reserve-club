@@ -29,6 +29,13 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 
 interface StaffMember {
   id: string;
@@ -54,6 +61,7 @@ export default function StaffManagement() {
     password: '',
     firstName: '',
     lastName: '',
+    role: 'staff' as 'staff' | 'admin',
   });
 
   useEffect(() => {
@@ -166,6 +174,7 @@ export default function StaffManagement() {
           password: newStaff.password,
           firstName: newStaff.firstName,
           lastName: newStaff.lastName,
+          role: newStaff.role,
         },
       });
 
@@ -175,9 +184,9 @@ export default function StaffManagement() {
         throw new Error(data.error);
       }
 
-      toast.success('Staff account created successfully');
+      toast.success(`${newStaff.role === 'admin' ? 'Admin' : 'Staff'} account created successfully`);
       setAddDialogOpen(false);
-      setNewStaff({ email: '', password: '', firstName: '', lastName: '' });
+      setNewStaff({ email: '', password: '', firstName: '', lastName: '', role: 'staff' });
       fetchStaff();
     } catch (error: any) {
       console.error('Error creating staff:', error);
@@ -212,12 +221,27 @@ export default function StaffManagement() {
               </DialogTrigger>
               <DialogContent>
                 <DialogHeader>
-                  <DialogTitle>Create Staff Account</DialogTitle>
+                  <DialogTitle>Create Account</DialogTitle>
                   <DialogDescription>
-                    Create a new staff member account. They will be able to log in immediately.
+                    Create a new staff or admin account. They will be able to log in immediately.
                   </DialogDescription>
                 </DialogHeader>
                 <div className="space-y-4 py-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="role">Role</Label>
+                    <Select
+                      value={newStaff.role}
+                      onValueChange={(value: 'staff' | 'admin') => setNewStaff({ ...newStaff, role: value })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select role" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="staff">Staff</SelectItem>
+                        <SelectItem value="admin">Admin</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label htmlFor="firstName">First Name</Label>

@@ -51,6 +51,7 @@ serve(async (req) => {
       password: z.string().min(8),
       firstName: z.string().min(1),
       lastName: z.string().min(1),
+      role: z.enum(['staff', 'admin']).default('staff'),
     });
 
     const body = await req.json();
@@ -63,7 +64,7 @@ serve(async (req) => {
       );
     }
 
-    const { email, password, firstName, lastName } = validationResult.data;
+    const { email, password, firstName, lastName, role } = validationResult.data;
 
     // Check if user already exists
     const { data: existingUsers } = await supabaseAdmin.auth.admin.listUsers();
@@ -76,7 +77,7 @@ serve(async (req) => {
       );
     }
 
-    // Create the staff user account
+    // Create the user account
     const { data: newUser, error: createError } = await supabaseAdmin.auth.admin.createUser({
       email,
       password,
@@ -84,34 +85,34 @@ serve(async (req) => {
       user_metadata: {
         first_name: firstName,
         last_name: lastName,
-        role: 'staff'
+        role: role
       }
     });
 
     if (createError || !newUser.user) {
       console.error('Failed to create user:', createError?.message);
       return new Response(
-        JSON.stringify({ error: 'Failed to create staff account' }),
+        JSON.stringify({ error: `Failed to create ${role} account` }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
     // The handle_new_user trigger will create the profile and user_role
-    // But we need to approve the staff role
+    // But we need to approve the role
     const { error: approveError } = await supabaseAdmin
       .from('user_roles')
       .update({ is_approved: true })
       .eq('user_id', newUser.user.id)
-      .eq('role', 'staff');
+      .eq('role', role);
 
     if (approveError) {
-      console.error('Failed to approve staff role:', approveError.message);
+      console.error(`Failed to approve ${role} role:`, approveError.message);
     }
 
     return new Response(
       JSON.stringify({ 
         success: true, 
-        message: 'Staff account created successfully',
+        message: `${role.charAt(0).toUpperCase() + role.slice(1)} account created successfully`,
         userId: newUser.user.id
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }

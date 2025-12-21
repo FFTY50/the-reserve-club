@@ -101,16 +101,38 @@ serve(async (req) => {
         const subscriptionId = subscriptionIdResult.data;
         const customerId = customerIdResult.data;
 
-        // Fetch tier definition for monthly_pours and monthly_price
+        // Fetch tier definition for monthly_pours, monthly_price, and max_subscriptions
         const { data: tier, error: tierError } = await supabase
           .from('tier_definitions')
-          .select('monthly_pours, monthly_price')
+          .select('monthly_pours, monthly_price, max_subscriptions')
           .eq('tier_name', tierName)
           .single();
 
         if (tierError || !tier) {
           console.error('Tier fetch failed');
           throw new Error('Membership tier not found');
+        }
+
+        // Check inventory availability (defense-in-depth)
+        if (tier.max_subscriptions !== null) {
+          const { count, error: countError } = await supabase
+            .from('memberships')
+            .select('*', { count: 'exact', head: true })
+            .eq('tier', tierName)
+            .eq('status', 'active');
+
+          if (countError) {
+            console.error('Error checking inventory:', countError);
+            throw new Error('Unable to verify tier availability');
+          }
+
+          const currentCount = count || 0;
+          if (currentCount >= tier.max_subscriptions) {
+            console.error(`Tier ${tierName} is at capacity: ${currentCount}/${tier.max_subscriptions}`);
+            // Log but still process - user already paid. Admin will need to handle.
+            // In production, you might want to trigger a refund here
+            console.warn('ALERT: Subscription created for sold-out tier - manual review needed');
+          }
         }
 
         // Update application status to approved

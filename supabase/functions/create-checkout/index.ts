@@ -134,10 +134,10 @@ serve(async (req) => {
 
     // Use existing admin client for remaining operations
 
-    // Fetch tier definition to get stripe_price_id
+    // Fetch tier definition to get stripe_price_id and max_subscriptions
     const { data: tier, error: tierError } = await supabaseAdmin
       .from('tier_definitions')
-      .select('stripe_price_id, display_name, monthly_price')
+      .select('stripe_price_id, display_name, monthly_price, max_subscriptions')
       .eq('tier_name', tierName)
       .single();
 
@@ -155,6 +155,34 @@ serve(async (req) => {
         JSON.stringify({ error: 'Membership tier not available' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
+    }
+
+    // Check tier availability if max_subscriptions is set
+    if (tier.max_subscriptions !== null) {
+      const { count, error: countError } = await supabaseAdmin
+        .from('memberships')
+        .select('*', { count: 'exact', head: true })
+        .eq('tier', tierName)
+        .eq('status', 'active');
+
+      if (countError) {
+        console.error('Error counting subscriptions:', countError);
+        return new Response(
+          JSON.stringify({ error: 'Unable to verify availability' }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      const currentCount = count || 0;
+      if (currentCount >= tier.max_subscriptions) {
+        console.log(`Tier ${tierName} is sold out: ${currentCount}/${tier.max_subscriptions}`);
+        return new Response(
+          JSON.stringify({ error: 'This membership tier is sold out. Please choose another tier.' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      console.log(`Tier ${tierName} availability: ${currentCount}/${tier.max_subscriptions}`);
     }
 
     // Fetch user profile for email and name

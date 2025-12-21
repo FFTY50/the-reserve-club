@@ -367,6 +367,7 @@ export type Database = {
           features: Json | null
           id: string
           is_active: boolean | null
+          max_subscriptions: number | null
           monthly_pours: number
           monthly_price: number
           stripe_price_id: string | null
@@ -378,6 +379,7 @@ export type Database = {
           features?: Json | null
           id?: string
           is_active?: boolean | null
+          max_subscriptions?: number | null
           monthly_pours: number
           monthly_price: number
           stripe_price_id?: string | null
@@ -389,6 +391,7 @@ export type Database = {
           features?: Json | null
           id?: string
           is_active?: boolean | null
+          max_subscriptions?: number | null
           monthly_pours?: number
           monthly_price?: number
           stripe_price_id?: string | null

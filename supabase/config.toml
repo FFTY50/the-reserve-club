@@ -1,5 +1,8 @@
 project_id = "qqacjsczbrzerilgapqa"
 
+[functions.check-tier-availability]
+verify_jwt = false
+
 [functions.create-checkout]
 verify_jwt = true
 

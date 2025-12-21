@@ -2,7 +2,9 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Users, UserCheck, Wine, Settings, Shield, ClipboardList } from 'lucide-react';
+import { Progress } from '@/components/ui/progress';
+import { Badge } from '@/components/ui/badge';
+import { Users, UserCheck, Wine, Settings, Shield, ClipboardList, Package, AlertTriangle } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -14,6 +16,15 @@ interface DashboardStats {
   totalPoursToday: number;
 }
 
+interface TierInventory {
+  tier_name: string;
+  display_name: string;
+  max_subscriptions: number | null;
+  current_subscriptions: number;
+  available: number | null;
+  status: 'available' | 'limited' | 'low' | 'critical' | 'sold_out';
+}
+
 export default function AdminDashboard() {
   const { signOut } = useAuth();
   const [stats, setStats] = useState<DashboardStats>({
@@ -23,10 +34,12 @@ export default function AdminDashboard() {
     pendingApplications: 0,
     totalPoursToday: 0,
   });
+  const [inventory, setInventory] = useState<TierInventory[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     fetchStats();
+    fetchInventory();
   }, []);
 
   const fetchStats = async () => {
@@ -57,6 +70,30 @@ export default function AdminDashboard() {
     }
   };
 
+  const fetchInventory = async () => {
+    try {
+      const { data, error } = await supabase.functions.invoke('check-tier-availability');
+      if (error) throw error;
+      if (data?.tiers) {
+        setInventory(data.tiers.filter((t: any) => t.max_subscriptions !== null));
+      }
+    } catch (error) {
+      console.error('Error fetching inventory:', error);
+    }
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'sold_out': return 'text-destructive';
+      case 'critical': return 'text-destructive';
+      case 'low': return 'text-orange-500';
+      case 'limited': return 'text-amber-500';
+      default: return 'text-green-500';
+    }
+  };
+
+  const hasInventoryAlert = inventory.some(t => ['sold_out', 'critical', 'low'].includes(t.status));
+
   const statCards = [
     { title: 'Total Customers', value: stats.totalCustomers, icon: Users, color: 'text-blue-500' },
     { title: 'Active Members', value: stats.activeMembers, icon: UserCheck, color: 'text-green-500' },
@@ -70,6 +107,7 @@ export default function AdminDashboard() {
     { title: 'Manage Customers', description: 'View and edit customer accounts', icon: Users, link: '/admin/customers' },
     { title: 'Applications', description: 'Review membership applications', icon: ClipboardList, link: '/admin/applications' },
     { title: 'Tier Settings', description: 'Configure membership tiers', icon: Settings, link: '/admin/tiers' },
+    { title: 'Inventory', description: 'Manage subscription availability', icon: Package, link: '/admin/inventory', alert: hasInventoryAlert },
   ];
 
   return (
@@ -115,10 +153,15 @@ export default function AdminDashboard() {
         </div>
 
         {/* Menu Grid */}
-        <div className="grid md:grid-cols-2 gap-4">
+        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
           {menuItems.map((item) => (
             <Link key={item.title} to={item.link}>
-              <Card className="hover:bg-accent transition-colors h-full">
+              <Card className="hover:bg-accent transition-colors h-full relative">
+                {item.alert && (
+                  <div className="absolute top-2 right-2">
+                    <AlertTriangle className="h-5 w-5 text-amber-500 animate-pulse" />
+                  </div>
+                )}
                 <CardHeader className="pb-2">
                   <CardTitle className="flex items-center gap-2 text-lg">
                     <item.icon className="h-5 w-5" />
@@ -132,6 +175,47 @@ export default function AdminDashboard() {
             </Link>
           ))}
         </div>
+
+        {/* Inventory Summary */}
+        {inventory.length > 0 && (
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="flex items-center gap-2">
+                <Package className="h-5 w-5" />
+                Subscription Inventory
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid md:grid-cols-3 gap-4">
+                {inventory.map((tier) => {
+                  const percentage = tier.max_subscriptions 
+                    ? Math.round((tier.current_subscriptions / tier.max_subscriptions) * 100)
+                    : 0;
+                  
+                  return (
+                    <div key={tier.tier_name} className="space-y-2">
+                      <div className="flex justify-between items-center">
+                        <span className="font-medium">{tier.display_name}</span>
+                        <Badge 
+                          variant={tier.status === 'available' ? 'secondary' : 'destructive'}
+                          className={getStatusColor(tier.status)}
+                        >
+                          {tier.available}/{tier.max_subscriptions}
+                        </Badge>
+                      </div>
+                      <Progress value={percentage} className="h-2" />
+                    </div>
+                  );
+                })}
+              </div>
+              <div className="mt-4 text-right">
+                <Button variant="link" asChild className="p-0">
+                  <Link to="/admin/inventory">Manage Inventory →</Link>
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Quick Actions */}
         <Card>

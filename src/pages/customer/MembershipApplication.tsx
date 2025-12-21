@@ -8,7 +8,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Label } from '@/components/ui/label';
 import { Slider } from '@/components/ui/slider';
 import { Progress } from '@/components/ui/progress';
-import { ChevronLeft, ChevronRight, Wine } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { ChevronLeft, ChevronRight, Wine, AlertTriangle, Flame, XCircle } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'react-hot-toast';
@@ -28,20 +29,26 @@ const applicationSchema = z.object({
 
 type ApplicationFormData = z.infer<typeof applicationSchema>;
 
-interface TierDefinition {
+interface TierAvailability {
   tier_name: string;
   display_name: string;
   monthly_price: number;
   monthly_pours: number;
   description: string | null;
+  max_subscriptions: number | null;
+  current_subscriptions: number;
+  available: number | null;
+  status: 'available' | 'limited' | 'low' | 'critical' | 'sold_out';
+  urgency_message: string | null;
 }
 
 export default function MembershipApplication() {
   const [step, setStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [existingApplicationId, setExistingApplicationId] = useState<string | null>(null);
-  const [tierOptions, setTierOptions] = useState<TierDefinition[]>([]);
+  const [tierOptions, setTierOptions] = useState<TierAvailability[]>([]);
   const [isLoadingApplication, setIsLoadingApplication] = useState(true);
+  const [isLoadingTiers, setIsLoadingTiers] = useState(true);
   const navigate = useNavigate();
   const { user } = useAuth();
   
@@ -60,18 +67,25 @@ export default function MembershipApplication() {
   const totalSteps = 2;
   const progress = (step / totalSteps) * 100;
 
-  // Load tier options
+  // Load tier options with availability
   useEffect(() => {
-    const fetchTiers = async () => {
-      const { data } = await supabase
-        .from('tier_definitions')
-        .select('*')
-        .eq('is_active', true)
-        .order('monthly_price', { ascending: true });
-      
-      if (data) setTierOptions(data);
+    const fetchTierAvailability = async () => {
+      setIsLoadingTiers(true);
+      try {
+        const { data, error } = await supabase.functions.invoke('check-tier-availability');
+        
+        if (error) throw error;
+        if (data?.tiers) {
+          setTierOptions(data.tiers);
+        }
+      } catch (error) {
+        console.error('Error fetching tier availability:', error);
+        toast.error('Failed to load membership options');
+      } finally {
+        setIsLoadingTiers(false);
+      }
     };
-    fetchTiers();
+    fetchTierAvailability();
   }, []);
 
   // Check for existing application and resume
@@ -115,6 +129,13 @@ export default function MembershipApplication() {
   }, [user, setValue]);
 
   const handleTierSelection = async (tierName: 'select' | 'premier' | 'elite' | 'household') => {
+    // Check if tier is sold out
+    const selectedTier = tierOptions.find(t => t.tier_name === tierName);
+    if (selectedTier?.status === 'sold_out') {
+      toast.error('This membership tier is currently sold out.');
+      return;
+    }
+
     setIsSubmitting(true);
     try {
       const currentData = watch();
@@ -149,7 +170,19 @@ export default function MembershipApplication() {
         }
       });
 
-      if (sessionError) throw sessionError;
+      if (sessionError) {
+        // Check for sold out error
+        if (sessionError.message?.includes('sold out')) {
+          toast.error('This membership tier just sold out. Please choose another tier.');
+          // Refresh availability
+          const { data } = await supabase.functions.invoke('check-tier-availability');
+          if (data?.tiers) setTierOptions(data.tiers);
+        } else {
+          throw sessionError;
+        }
+        setIsSubmitting(false);
+        return;
+      }
 
       // Redirect to Stripe
       window.location.href = session.url;
@@ -321,42 +354,85 @@ export default function MembershipApplication() {
                     </div>
                   )}
 
-                  <div className="grid gap-4 relative">
-                    {tierOptions.map((tier) => (
-                      <Card 
-                        key={tier.tier_name}
-                        className="transition-all hover:border-primary hover:shadow-lg cursor-pointer"
-                        onClick={() => !isSubmitting && handleTierSelection(tier.tier_name as 'select' | 'premier' | 'elite' | 'household')}
-                      >
-                        <CardContent className="flex items-start gap-4 p-6">
-                          <div className="flex-1 space-y-2">
-                            <div className="flex items-center justify-between">
-                              <h4 className="text-lg font-semibold flex items-center gap-2">
-                                <Wine className="h-5 w-5 text-primary" />
-                                {tier.display_name}
-                              </h4>
-                              <div className="text-right">
-                                <p className="text-2xl font-bold">${tier.monthly_price}</p>
-                                <p className="text-xs text-muted-foreground">per month</p>
+                  {isLoadingTiers ? (
+                    <div className="flex justify-center py-8">
+                      <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
+                    </div>
+                  ) : (
+                    <div className="grid gap-4 relative">
+                      {tierOptions.map((tier) => {
+                        const isSoldOut = tier.status === 'sold_out';
+                        const hasUrgency = tier.urgency_message && !isSoldOut;
+                        
+                        return (
+                          <Card 
+                            key={tier.tier_name}
+                            className={`transition-all ${
+                              isSoldOut 
+                                ? 'opacity-60 cursor-not-allowed border-muted' 
+                                : 'hover:border-primary hover:shadow-lg cursor-pointer'
+                            } ${hasUrgency ? 'border-amber-500/50' : ''}`}
+                            onClick={() => !isSubmitting && !isSoldOut && handleTierSelection(tier.tier_name as 'select' | 'premier' | 'elite' | 'household')}
+                          >
+                            <CardContent className="flex items-start gap-4 p-6">
+                              <div className="flex-1 space-y-2">
+                                <div className="flex items-center justify-between flex-wrap gap-2">
+                                  <h4 className="text-lg font-semibold flex items-center gap-2">
+                                    <Wine className="h-5 w-5 text-primary" />
+                                    {tier.display_name}
+                                  </h4>
+                                  <div className="flex items-center gap-2">
+                                    {/* Urgency Badge */}
+                                    {isSoldOut && (
+                                      <Badge variant="destructive" className="flex items-center gap-1">
+                                        <XCircle className="h-3 w-3" />
+                                        Sold Out
+                                      </Badge>
+                                    )}
+                                    {tier.status === 'critical' && (
+                                      <Badge variant="destructive" className="flex items-center gap-1 animate-pulse">
+                                        <Flame className="h-3 w-3" />
+                                        {tier.urgency_message}
+                                      </Badge>
+                                    )}
+                                    {tier.status === 'low' && (
+                                      <Badge className="flex items-center gap-1 bg-orange-500 hover:bg-orange-600">
+                                        <AlertTriangle className="h-3 w-3" />
+                                        {tier.urgency_message}
+                                      </Badge>
+                                    )}
+                                    {tier.status === 'limited' && (
+                                      <Badge variant="secondary" className="flex items-center gap-1">
+                                        {tier.urgency_message}
+                                      </Badge>
+                                    )}
+                                    <div className="text-right">
+                                      <p className="text-2xl font-bold">${tier.monthly_price}</p>
+                                      <p className="text-xs text-muted-foreground">per month</p>
+                                    </div>
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                                  <span className="font-semibold text-primary">{tier.monthly_pours}</span>
+                                  <span>pours per month</span>
+                                </div>
+                                {tier.description && (
+                                  <p className="text-sm text-muted-foreground pt-2">
+                                    {tier.description}
+                                  </p>
+                                )}
+                                {!isSoldOut && (
+                                  <p className="text-sm text-primary font-medium pt-2">
+                                    Continue to Payment →
+                                  </p>
+                                )}
                               </div>
-                            </div>
-                            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                              <span className="font-semibold text-primary">{tier.monthly_pours}</span>
-                              <span>pours per month</span>
-                            </div>
-                            {tier.description && (
-                              <p className="text-sm text-muted-foreground pt-2">
-                                {tier.description}
-                              </p>
-                            )}
-                            <p className="text-sm text-primary font-medium pt-2">
-                              Continue to Payment →
-                            </p>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ))}
-                  </div>
+                            </CardContent>
+                          </Card>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
               )}
 

@@ -65,13 +65,13 @@ serve(async (req) => {
 
     console.log('Processing webhook event:', event.type);
 
-    // Define validation schemas
+    // Define validation schemas - no longer requires applicationId
     const metadataSchema = z.object({
-      applicationId: z.string().uuid('Invalid application ID format'),
       userId: z.string().uuid('Invalid user ID format'),
       tierName: z.enum(['select', 'premier', 'elite', 'household'], {
         errorMap: () => ({ message: 'Invalid tier name' })
-      })
+      }),
+      preferences: z.string().optional() // JSON string of preferences
     });
 
     const stripeIdSchema = z.string().min(1, 'Invalid Stripe ID');
@@ -88,7 +88,17 @@ serve(async (req) => {
           throw new Error('Invalid session metadata');
         }
 
-        const { applicationId, userId, tierName } = metadataResult.data;
+        const { userId, tierName, preferences: preferencesJson } = metadataResult.data;
+
+        // Parse preferences from JSON string
+        let preferences = null;
+        if (preferencesJson) {
+          try {
+            preferences = JSON.parse(preferencesJson);
+          } catch (e) {
+            console.warn('Failed to parse preferences JSON:', e);
+          }
+        }
 
         // Validate and retrieve subscription ID from session
         const subscriptionIdResult = stripeIdSchema.safeParse(session.subscription);
@@ -130,23 +140,7 @@ serve(async (req) => {
           console.warn('ALERT: Subscription created for sold-out tier - manual review needed');
         }
 
-        // Update application status to approved
-        const { error: appError } = await supabase
-          .from('membership_applications')
-          .update({
-            status: 'approved',
-            reviewed_at: new Date().toISOString(),
-            is_complete: true,
-            notes: 'Automatically approved via Stripe payment',
-          })
-          .eq('id', applicationId);
-
-        if (appError) {
-          console.error('Failed to update application:', appError);
-          throw new Error('Failed to approve application');
-        }
-
-        // Upsert customer record (handles both new signups and renewals)
+        // Upsert customer record with preferences (handles both new signups and renewals)
         const { data: customer, error: customerError } = await supabase
           .from('customers')
           .upsert({
@@ -156,6 +150,7 @@ serve(async (req) => {
             pours_balance: tier.monthly_pours,
             status: 'active',
             total_pours_lifetime: 0,
+            preferences: preferences, // Store wine preferences directly on customer
           }, {
             onConflict: 'user_id',
             ignoreDuplicates: false

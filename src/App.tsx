@@ -14,12 +14,10 @@ import Dashboard from "./pages/customer/Dashboard";
 import QRCode from "./pages/customer/QRCode";
 import PoursHistory from "./pages/customer/PoursHistory";
 import Account from "./pages/customer/Account";
-import MembershipApplication from "./pages/customer/MembershipApplication";
+import JoinMembership from "./pages/customer/JoinMembership";
 import PaymentSuccess from "./pages/customer/PaymentSuccess";
 import StaffDashboard from "./pages/staff/Dashboard";
 import StaffSearch from "./pages/staff/Search";
-import StaffApplications from "./pages/staff/Applications";
-import ApplicationDetail from "./pages/staff/ApplicationDetail";
 import CustomerDetail from "./pages/staff/CustomerDetail";
 import AddPour from "./pages/staff/AddPour";
 import AddMembership from "./pages/staff/AddMembership";
@@ -27,7 +25,6 @@ import AdminDashboard from "./pages/admin/Dashboard";
 import StaffManagement from "./pages/admin/StaffManagement";
 import CustomerManagement from "./pages/admin/CustomerManagement";
 import TierSettings from "./pages/admin/TierSettings";
-import AdminApplications from "./pages/admin/Applications";
 import AdminSetup from "./pages/admin/Setup";
 import Inventory from "./pages/admin/Inventory";
 import NotFound from "./pages/NotFound";
@@ -55,11 +52,13 @@ const App = () => (
                 <Dashboard />
               </ProtectedRoute>
             } />
-            <Route path="/apply" element={
+            <Route path="/join" element={
               <ProtectedRoute requiredRole="customer">
-                <MembershipApplication />
+                <JoinMembership />
               </ProtectedRoute>
             } />
+            {/* Legacy route redirect */}
+            <Route path="/apply" element={<Navigate to="/join" replace />} />
             <Route path="/payment-success" element={
               <ProtectedRoute requiredRole="customer">
                 <PaymentSuccess />
@@ -90,16 +89,6 @@ const App = () => (
             <Route path="/staff/search" element={
               <ProtectedRoute requiredRole="staff">
                 <StaffSearch />
-              </ProtectedRoute>
-            } />
-            <Route path="/staff/applications" element={
-              <ProtectedRoute requiredRole="staff">
-                <StaffApplications />
-              </ProtectedRoute>
-            } />
-            <Route path="/staff/applications/:id" element={
-              <ProtectedRoute requiredRole="staff">
-                <ApplicationDetail />
               </ProtectedRoute>
             } />
             <Route path="/staff/customers/:id" element={
@@ -138,11 +127,6 @@ const App = () => (
             <Route path="/admin/tiers" element={
               <ProtectedRoute requiredRole="admin">
                 <TierSettings />
-              </ProtectedRoute>
-            } />
-            <Route path="/admin/applications" element={
-              <ProtectedRoute requiredRole="admin">
-                <AdminApplications />
               </ProtectedRoute>
             } />
             <Route path="/admin/inventory" element={

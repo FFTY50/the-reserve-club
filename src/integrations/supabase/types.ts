@@ -22,6 +22,7 @@ export type Database = {
           last_activity: string | null
           member_since: string
           pours_balance: number
+          preferences: Json | null
           qr_code_url: string | null
           signed_up_by_staff_id: string | null
           status: Database["public"]["Enums"]["customer_status"]
@@ -37,6 +38,7 @@ export type Database = {
           last_activity?: string | null
           member_since?: string
           pours_balance?: number
+          preferences?: Json | null
           qr_code_url?: string | null
           signed_up_by_staff_id?: string | null
           status?: Database["public"]["Enums"]["customer_status"]
@@ -52,6 +54,7 @@ export type Database = {
           last_activity?: string | null
           member_since?: string
           pours_balance?: number
+          preferences?: Json | null
           qr_code_url?: string | null
           signed_up_by_staff_id?: string | null
           status?: Database["public"]["Enums"]["customer_status"]

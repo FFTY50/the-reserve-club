@@ -1,14 +1,12 @@
 import { useEffect, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { TierBadge } from '@/components/TierBadge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
-import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription } from '@/components/ui/alert-dialog';
-import { QrCode, History, User, Clock, Calendar, LogOut, CreditCard } from 'lucide-react';
-import { QRCodeSVG } from 'qrcode.react';
+import { QrCode, History, User, Calendar, LogOut, CreditCard } from 'lucide-react';
 
 interface CustomerData {
   tier: 'select' | 'premier' | 'elite' | 'household';
@@ -21,12 +19,9 @@ interface CustomerData {
 
 export default function Dashboard() {
   const { user, signOut } = useAuth();
-  const navigate = useNavigate();
   const [customerData, setCustomerData] = useState<CustomerData | null>(null);
   const [loading, setLoading] = useState(true);
   const [firstName, setFirstName] = useState('');
-  const [hasPendingApplication, setHasPendingApplication] = useState(false);
-  const [showApplicationDialog, setShowApplicationDialog] = useState(false);
   const [hasHadMembershipBefore, setHasHadMembershipBefore] = useState(false);
 
   useEffect(() => {
@@ -90,6 +85,7 @@ export default function Dashboard() {
         if (customer.status !== 'active') {
           // Show inactive membership state
           setCustomerData(null);
+          setHasHadMembershipBefore(true);
           setLoading(false);
           return;
         }
@@ -134,34 +130,6 @@ export default function Dashboard() {
           
           setHasHadMembershipBefore((pastMemberships?.length || 0) > 0);
         }
-
-        // Check if user has a pending application
-        const { data: application } = await supabase
-          .from('membership_applications')
-          .select('status, is_complete, selected_tier, current_step, preferences, stripe_session_id')
-          .eq('user_id', user.id)
-          .eq('status', 'pending')
-          .maybeSingle();
-
-        if (application) {
-          // Check if application is incomplete
-          if (!application.is_complete || !application.selected_tier) {
-            // Redirect to continue application
-            navigate('/apply');
-            return;
-          }
-          
-          // Check payment status
-          if (application.status === 'pending' && application.stripe_session_id) {
-            // Payment was initiated but not completed
-            setHasPendingApplication(true);
-            setShowApplicationDialog(true);
-          } else if (application.status === 'pending') {
-            // No payment session - redirect to complete payment
-            navigate('/apply');
-            return;
-          }
-        }
       }
     } catch (error) {
       console.error('Error fetching customer data:', error);
@@ -178,7 +146,7 @@ export default function Dashboard() {
     );
   }
 
-  if (!customerData && !hasPendingApplication) {
+  if (!customerData) {
     return (
       <div className="flex min-h-screen items-center justify-center p-4">
         <Card className="max-w-md">
@@ -209,7 +177,7 @@ export default function Dashboard() {
             )}
             <div className="flex flex-col gap-3">
               <Button asChild>
-                <Link to="/apply">
+                <Link to="/join">
                   {hasHadMembershipBefore ? 'Renew Membership' : 'Get Started'}
                 </Link>
               </Button>
@@ -223,125 +191,6 @@ export default function Dashboard() {
           </CardContent>
         </Card>
       </div>
-    );
-  }
-
-  // Show preview dashboard for pending applications
-  if (hasPendingApplication && !customerData) {
-    return (
-      <>
-        <AlertDialog open={showApplicationDialog} onOpenChange={setShowApplicationDialog}>
-          <AlertDialogContent className="max-w-md">
-            <AlertDialogHeader>
-              <AlertDialogTitle className="flex items-center gap-2">
-                <Clock className="h-5 w-5 text-primary" />
-                Complete Your Payment
-              </AlertDialogTitle>
-              <AlertDialogDescription className="space-y-4 pt-2">
-                <p>
-                  Your application is saved, but we're waiting for payment confirmation to activate your membership.
-                </p>
-                
-                <div className="flex flex-col items-center gap-3 py-4 bg-background rounded-lg border">
-                  <p className="text-sm font-medium text-foreground">Your Member QR Code</p>
-                  <div className="bg-white p-4 rounded-lg">
-                    <QRCodeSVG 
-                      value={user?.id || ''} 
-                      size={180}
-                      level="H"
-                      includeMargin={true}
-                    />
-                  </div>
-                  <p className="text-xs text-muted-foreground text-center px-4">
-                    Staff can scan this code to verify your application
-                  </p>
-                </div>
-
-                <p className="text-sm font-medium">
-                  Click below to return to payment and complete your membership.
-                </p>
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <div className="flex gap-3">
-              <Button onClick={() => navigate('/apply')} className="flex-1">
-                Complete Payment
-              </Button>
-              <Button variant="outline" onClick={() => setShowApplicationDialog(false)}>
-                Later
-              </Button>
-            </div>
-          </AlertDialogContent>
-        </AlertDialog>
-
-        <div className="min-h-screen p-4 md:p-8 opacity-60 pointer-events-none select-none">
-          <div className="max-w-2xl mx-auto space-y-6">
-            <div className="flex justify-between items-center">
-              <h1 className="text-3xl font-serif">Welcome, {firstName}!</h1>
-              <Button variant="ghost" size="sm" className="pointer-events-auto" onClick={signOut}>
-                Sign Out
-              </Button>
-            </div>
-
-            <Card>
-              <CardHeader>
-                <CardTitle>Current Tier</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <TierBadge tier="select" className="text-lg px-6 py-2" />
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle>Pours Remaining</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="text-center">
-                  <p className="text-5xl font-serif text-muted-foreground">
-                    0 / 0
-                  </p>
-                </div>
-                <Progress value={0} className="h-3" />
-                <p className="text-sm text-muted-foreground text-center">
-                  Available once membership is activated
-                </p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle>Member Since</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-xl text-muted-foreground">
-                  Pending activation
-                </p>
-              </CardContent>
-            </Card>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <Button asChild size="lg" className="h-20 pointer-events-auto opacity-100">
-                <Link to="/qr-code" className="flex flex-col items-center gap-2">
-                  <QrCode className="h-6 w-6" />
-                  <span>Show QR Code</span>
-                </Link>
-              </Button>
-              <Button size="lg" variant="secondary" className="h-20" disabled>
-                <div className="flex flex-col items-center gap-2">
-                  <History className="h-6 w-6" />
-                  <span>View History</span>
-                </div>
-              </Button>
-              <Button size="lg" variant="secondary" className="h-20" disabled>
-                <div className="flex flex-col items-center gap-2">
-                  <User className="h-6 w-6" />
-                  <span>Account</span>
-                </div>
-              </Button>
-            </div>
-          </div>
-        </div>
-      </>
     );
   }
 
@@ -466,19 +315,19 @@ export default function Dashboard() {
       <div className="fixed bottom-0 left-0 right-0 bg-card border-t border-border md:hidden">
         <div className="grid grid-cols-3 gap-px bg-border">
           <Link to="/qr-code">
-            <Button variant="ghost" className="h-16 w-full rounded-none flex flex-col items-center gap-1">
+            <Button variant="ghost" className="w-full h-16 rounded-none flex flex-col gap-1">
               <QrCode className="h-5 w-5" />
               <span className="text-xs">QR Code</span>
             </Button>
           </Link>
           <Link to="/pours">
-            <Button variant="ghost" className="h-16 w-full rounded-none flex flex-col items-center gap-1">
+            <Button variant="ghost" className="w-full h-16 rounded-none flex flex-col gap-1">
               <History className="h-5 w-5" />
               <span className="text-xs">History</span>
             </Button>
           </Link>
           <Link to="/account">
-            <Button variant="ghost" className="h-16 w-full rounded-none flex flex-col items-center gap-1">
+            <Button variant="ghost" className="w-full h-16 rounded-none flex flex-col gap-1">
               <User className="h-5 w-5" />
               <span className="text-xs">Account</span>
             </Button>

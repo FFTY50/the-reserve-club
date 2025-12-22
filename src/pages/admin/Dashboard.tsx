@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
-import { Users, UserCheck, Wine, Settings, Shield, ClipboardList, Package, AlertTriangle } from 'lucide-react';
+import { Users, UserCheck, Wine, Settings, Shield, Package, AlertTriangle } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -12,7 +12,6 @@ interface DashboardStats {
   totalCustomers: number;
   activeMembers: number;
   pendingStaff: number;
-  pendingApplications: number;
   totalPoursToday: number;
 }
 
@@ -31,7 +30,6 @@ export default function AdminDashboard() {
     totalCustomers: 0,
     activeMembers: 0,
     pendingStaff: 0,
-    pendingApplications: 0,
     totalPoursToday: 0,
   });
   const [inventory, setInventory] = useState<TierInventory[]>([]);
@@ -47,10 +45,9 @@ export default function AdminDashboard() {
       const today = new Date();
       today.setHours(0, 0, 0, 0);
 
-      const [customersRes, pendingStaffRes, applicationsRes, poursRes] = await Promise.all([
+      const [customersRes, pendingStaffRes, poursRes] = await Promise.all([
         supabase.from('customers').select('id, status', { count: 'exact' }),
         supabase.from('user_roles').select('id', { count: 'exact' }).eq('role', 'staff').eq('is_approved', false),
-        supabase.from('membership_applications').select('id', { count: 'exact' }).eq('status', 'pending'),
         supabase.from('pours').select('id', { count: 'exact' }).gte('created_at', today.toISOString()),
       ]);
 
@@ -60,7 +57,6 @@ export default function AdminDashboard() {
         totalCustomers: customersRes.count || 0,
         activeMembers: activeCustomers,
         pendingStaff: pendingStaffRes.count || 0,
-        pendingApplications: applicationsRes.count || 0,
         totalPoursToday: poursRes.count || 0,
       });
     } catch (error) {
@@ -98,14 +94,12 @@ export default function AdminDashboard() {
     { title: 'Total Customers', value: stats.totalCustomers, icon: Users, color: 'text-blue-500' },
     { title: 'Active Members', value: stats.activeMembers, icon: UserCheck, color: 'text-green-500' },
     { title: 'Pending Staff', value: stats.pendingStaff, icon: Shield, color: 'text-amber-500', link: '/admin/staff' },
-    { title: 'Pending Applications', value: stats.pendingApplications, icon: ClipboardList, color: 'text-purple-500', link: '/admin/applications' },
     { title: 'Pours Today', value: stats.totalPoursToday, icon: Wine, color: 'text-rose-500' },
   ];
 
   const menuItems = [
     { title: 'Manage Staff', description: 'Approve and manage staff accounts', icon: Shield, link: '/admin/staff' },
     { title: 'Manage Customers', description: 'View and edit customer accounts', icon: Users, link: '/admin/customers' },
-    { title: 'Applications', description: 'Review membership applications', icon: ClipboardList, link: '/admin/applications' },
     { title: 'Tier Settings', description: 'Configure membership tiers', icon: Settings, link: '/admin/tiers' },
     { title: 'Inventory', description: 'Manage subscription availability', icon: Package, link: '/admin/inventory', alert: hasInventoryAlert },
   ];
@@ -122,7 +116,7 @@ export default function AdminDashboard() {
         </div>
 
         {/* Stats Grid */}
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {statCards.map((stat) => (
             <Card key={stat.title} className={stat.link ? 'cursor-pointer hover:bg-accent transition-colors' : ''}>
               {stat.link ? (
@@ -153,7 +147,7 @@ export default function AdminDashboard() {
         </div>
 
         {/* Menu Grid */}
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
           {menuItems.map((item) => (
             <Link key={item.title} to={item.link}>
               <Card className="hover:bg-accent transition-colors h-full relative">

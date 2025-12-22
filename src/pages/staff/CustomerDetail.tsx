@@ -16,6 +16,7 @@ interface CustomerData {
   available_pours: number;
   total_pours_lifetime: number;
   member_since: string;
+  preferences: any;
   profiles: {
     first_name: string;
     last_name: string;
@@ -36,16 +37,11 @@ interface PourRecord {
   notes: string;
 }
 
-interface ApplicationPreferences {
-  preferences: any;
-}
-
 export default function CustomerDetail() {
   const { id } = useParams();
   const [customer, setCustomer] = useState<CustomerData | null>(null);
   const [membership, setMembership] = useState<MembershipData | null>(null);
   const [pours, setPours] = useState<PourRecord[]>([]);
-  const [preferences, setPreferences] = useState<any>(null);
   const [profileSummary, setProfileSummary] = useState<string | null>(null);
   const [summaryLoading, setSummaryLoading] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -63,7 +59,7 @@ export default function CustomerDetail() {
       // Fetch customer by route param (supports both user_id and customer id)
       const { data: byUser } = await supabase
         .from('customers')
-        .select('id, user_id, tier, status, total_pours_lifetime, member_since')
+        .select('id, user_id, tier, status, total_pours_lifetime, member_since, preferences')
         .eq('user_id', routeId)
         .maybeSingle();
 
@@ -71,7 +67,7 @@ export default function CustomerDetail() {
       if (!baseCustomer) {
         const { data: byId } = await supabase
           .from('customers')
-          .select('id, user_id, tier, status, total_pours_lifetime, member_since')
+          .select('id, user_id, tier, status, total_pours_lifetime, member_since, preferences')
           .eq('id', routeId)
           .maybeSingle();
         baseCustomer = byId as any;
@@ -103,6 +99,7 @@ export default function CustomerDetail() {
         available_pours: availablePoursData?.available_pours || 0,
         total_pours_lifetime: baseCustomer.total_pours_lifetime,
         member_since: baseCustomer.member_since,
+        preferences: baseCustomer.preferences,
         profiles: {
           first_name: (profile as any)?.first_name || '',
           last_name: (profile as any)?.last_name || '',
@@ -133,19 +130,9 @@ export default function CustomerDetail() {
 
       setPours(poursData || []);
 
-      // Fetch application preferences
-      const { data: appData } = await supabase
-        .from('membership_applications')
-        .select('preferences')
-        .eq('user_id', baseCustomer.user_id)
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
-
-      if (appData?.preferences) {
-        setPreferences(appData.preferences);
-        // Generate AI summary with customer data
-        generateProfileSummary(appData.preferences, customerWithProfile, poursData || []);
+      // Generate AI summary if preferences exist
+      if (baseCustomer.preferences) {
+        generateProfileSummary(baseCustomer.preferences, customerWithProfile, poursData || []);
       }
     } catch (error) {
       console.error('Error fetching customer data:', error);
@@ -305,7 +292,7 @@ export default function CustomerDetail() {
         </Card>
 
         {/* Customer Profile Summary */}
-        {preferences && (
+        {customer.preferences && (
           <Card>
             <CardHeader>
               <CardTitle>Customer Profile</CardTitle>

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -13,21 +13,18 @@ import { ChevronLeft, ChevronRight, Wine, AlertTriangle, Flame, XCircle } from '
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'react-hot-toast';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 
-const applicationSchema = z.object({
-  // Survey questions
+const STORAGE_KEY = 'vino_join_progress';
+
+const preferencesSchema = z.object({
   wine_knowledge: z.number().min(1).max(10),
   drinking_frequency: z.number().min(1).max(10),
   red_wine_preference: z.number().min(1).max(10),
   white_wine_preference: z.number().min(1).max(10),
   adventurousness: z.number().min(1).max(10),
-  
-  // Tier Selection
-  selected_tier: z.enum(['select', 'premier', 'elite', 'household']),
 });
 
-type ApplicationFormData = z.infer<typeof applicationSchema>;
+type PreferencesFormData = z.infer<typeof preferencesSchema>;
 
 interface TierAvailability {
   tier_name: string;
@@ -42,30 +39,40 @@ interface TierAvailability {
   urgency_message: string | null;
 }
 
-export default function MembershipApplication() {
+interface StoredProgress {
+  step: number;
+  preferences: PreferencesFormData;
+}
+
+export default function JoinMembership() {
+  const [searchParams] = useSearchParams();
   const [step, setStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [existingApplicationId, setExistingApplicationId] = useState<string | null>(null);
   const [tierOptions, setTierOptions] = useState<TierAvailability[]>([]);
-  const [isLoadingApplication, setIsLoadingApplication] = useState(true);
   const [isLoadingTiers, setIsLoadingTiers] = useState(true);
   const navigate = useNavigate();
   const { user } = useAuth();
   
-  const { register, handleSubmit, watch, setValue, formState: { errors } } = useForm<ApplicationFormData>({
-    resolver: zodResolver(applicationSchema),
+  const { watch, setValue, formState: { errors } } = useForm<PreferencesFormData>({
+    resolver: zodResolver(preferencesSchema),
     defaultValues: {
       wine_knowledge: 5,
       drinking_frequency: 5,
       red_wine_preference: 5,
       white_wine_preference: 5,
       adventurousness: 5,
-      selected_tier: 'select',
     },
   });
 
   const totalSteps = 2;
   const progress = (step / totalSteps) * 100;
+
+  // Check for cancelled payment
+  useEffect(() => {
+    if (searchParams.get('cancelled') === 'true') {
+      toast.error('Payment was cancelled. You can try again when ready.');
+    }
+  }, [searchParams]);
 
   // Load tier options with availability
   useEffect(() => {
@@ -88,45 +95,36 @@ export default function MembershipApplication() {
     fetchTierAvailability();
   }, []);
 
-  // Check for existing application and resume
+  // Load saved progress from sessionStorage
   useEffect(() => {
-    const checkExistingApplication = async () => {
-      if (!user) return;
-
+    const savedProgress = sessionStorage.getItem(STORAGE_KEY);
+    if (savedProgress) {
       try {
-        const { data } = await supabase
-          .from('membership_applications')
-          .select('*')
-          .eq('user_id', user.id)
-          .eq('status', 'pending')
-          .maybeSingle();
-
-        if (data && !data.is_complete) {
-          // Resume from saved step
-          setExistingApplicationId(data.id);
-          setStep(data.current_step || 1);
-          
-          // Pre-populate form with saved preferences
-          const prefs = data.preferences as any;
-          Object.keys(prefs).forEach((key) => {
-            setValue(key as keyof ApplicationFormData, prefs[key]);
-          });
-          
-          if (data.selected_tier) {
-            setValue('selected_tier', data.selected_tier);
-          }
-          
-          toast.success('Resuming your survey from where you left off');
-        }
-      } catch (error) {
-        console.error('Error checking existing application:', error);
-      } finally {
-        setIsLoadingApplication(false);
+        const parsed: StoredProgress = JSON.parse(savedProgress);
+        setStep(parsed.step || 1);
+        
+        // Restore preferences
+        Object.entries(parsed.preferences).forEach(([key, value]) => {
+          setValue(key as keyof PreferencesFormData, value as number);
+        });
+        
+        toast.success('Resuming from where you left off');
+      } catch (e) {
+        console.error('Failed to parse saved progress:', e);
+        sessionStorage.removeItem(STORAGE_KEY);
       }
-    };
+    }
+  }, [setValue]);
 
-    checkExistingApplication();
-  }, [user, setValue]);
+  // Save progress to sessionStorage whenever it changes
+  const saveProgress = (newStep: number) => {
+    const currentData = watch();
+    const progressData: StoredProgress = {
+      step: newStep,
+      preferences: currentData,
+    };
+    sessionStorage.setItem(STORAGE_KEY, JSON.stringify(progressData));
+  };
 
   const handleTierSelection = async (tierName: 'select' | 'premier' | 'elite' | 'household') => {
     // Check if tier is sold out
@@ -138,35 +136,14 @@ export default function MembershipApplication() {
 
     setIsSubmitting(true);
     try {
-      const currentData = watch();
-      const applicationData: any = {
-        user_id: user?.id!,
-        preferences: currentData as any,
-        selected_tier: tierName,
-        current_step: 2,
-        status: 'pending' as const,
-        is_complete: true,
-      };
+      const preferences = watch();
 
-      // Only include id if updating existing application
-      if (existingApplicationId) {
-        applicationData.id = existingApplicationId;
-      }
-
-      const { data: appData, error: appError } = await supabase
-        .from('membership_applications')
-        .upsert([applicationData])
-        .select()
-        .single();
-
-      if (appError) throw appError;
-
-      // Create Stripe checkout session
+      // Create Stripe checkout session directly with preferences
       const { data: session, error: sessionError } = await supabase.functions.invoke('create-checkout', {
         body: {
           tierName,
-          applicationId: appData.id,
           userId: user?.id,
+          preferences, // Pass preferences directly
         }
       });
 
@@ -184,6 +161,9 @@ export default function MembershipApplication() {
         return;
       }
 
+      // Clear saved progress before redirecting
+      sessionStorage.removeItem(STORAGE_KEY);
+
       // Redirect to Stripe
       window.location.href = session.url;
     } catch (error) {
@@ -193,47 +173,20 @@ export default function MembershipApplication() {
     }
   };
 
-  const nextStep = async () => {
+  const nextStep = () => {
     if (step >= totalSteps) return;
-
-    // Auto-save progress
-    try {
-      const currentData = watch();
-      const applicationData: any = {
-        user_id: user?.id,
-        preferences: currentData,
-        current_step: step + 1,
-        status: 'pending',
-        is_complete: false,
-      };
-
-      // Only include id if updating existing application
-      if (existingApplicationId) {
-        applicationData.id = existingApplicationId;
-      }
-
-      const { data, error } = await supabase
-        .from('membership_applications')
-        .upsert(applicationData)
-        .select()
-        .single();
-
-      if (error) throw error;
-      
-      if (!existingApplicationId && data) {
-        setExistingApplicationId(data.id);
-      }
-
-      setStep(step + 1);
-      toast.success('Progress saved');
-    } catch (error) {
-      console.error('Error saving progress:', error);
-      toast.error('Failed to save progress');
-    }
+    const newStep = step + 1;
+    saveProgress(newStep);
+    setStep(newStep);
+    toast.success('Progress saved');
   };
 
   const prevStep = () => {
-    if (step > 1) setStep(step - 1);
+    if (step > 1) {
+      const newStep = step - 1;
+      saveProgress(newStep);
+      setStep(newStep);
+    }
   };
 
   const SliderField = ({ 
@@ -241,7 +194,7 @@ export default function MembershipApplication() {
     label, 
     description 
   }: { 
-    name: keyof ApplicationFormData; 
+    name: keyof PreferencesFormData; 
     label: string; 
     description: string;
   }) => {
@@ -272,14 +225,6 @@ export default function MembershipApplication() {
     );
   };
 
-  if (isLoadingApplication) {
-    return (
-      <div className="flex min-h-screen items-center justify-center">
-        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
-      </div>
-    );
-  }
-
   return (
     <div className="min-h-screen p-4 md:p-8">
       <div className="max-w-2xl mx-auto space-y-6">
@@ -290,9 +235,9 @@ export default function MembershipApplication() {
 
         <Card>
           <CardHeader>
-            <CardTitle className="text-2xl font-serif">Wine Preference Survey</CardTitle>
+            <CardTitle className="text-2xl font-serif">Join Vino Sabor</CardTitle>
             <CardDescription>
-              Tell us about your wine preferences (Step {step} of {totalSteps})
+              {step === 1 ? 'Tell us about your wine preferences' : 'Choose your membership'} (Step {step} of {totalSteps})
             </CardDescription>
             <Progress value={progress} className="mt-4" />
           </CardHeader>

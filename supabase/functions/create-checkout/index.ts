@@ -104,11 +104,11 @@ serve(async (req) => {
       );
     }
 
-    // Validate input
+    // Validate input - no longer requires applicationId
     const requestSchema = z.object({
       tierName: z.enum(['select', 'premier', 'elite', 'household']),
-      applicationId: z.string().uuid(),
-      userId: z.string().uuid()
+      userId: z.string().uuid(),
+      preferences: z.record(z.any()).optional() // Optional wine preferences
     });
 
     const body = await req.json();
@@ -122,17 +122,15 @@ serve(async (req) => {
       );
     }
 
-    const { tierName, applicationId, userId } = validationResult.data;
+    const { tierName, userId, preferences } = validationResult.data;
 
-    // Verify user owns this application
+    // Verify user owns this request
     if (user.id !== userId) {
       return new Response(
         JSON.stringify({ error: 'Unauthorized: Cannot create checkout for another user' }),
         { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
-
-    // Use existing admin client for remaining operations
 
     // Fetch tier definition to get stripe_price_id and max_subscriptions
     const { data: tier, error: tierError } = await supabaseAdmin
@@ -199,7 +197,7 @@ serve(async (req) => {
 
     const origin = req.headers.get('origin') || 'http://localhost:8080';
 
-    // Create Stripe Checkout Session
+    // Create Stripe Checkout Session - pass preferences in metadata
     const session = await stripe.checkout.sessions.create({
       mode: 'subscription',
       line_items: [
@@ -210,23 +208,16 @@ serve(async (req) => {
       ],
       customer_email: profile.email,
       metadata: {
-        applicationId,
         userId,
         tierName,
+        // Store preferences as JSON string in metadata (Stripe has 500 char limit per value)
+        preferences: preferences ? JSON.stringify(preferences).substring(0, 500) : '',
       },
       success_url: `${origin}/payment-success?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${origin}/apply?cancelled=true`,
+      cancel_url: `${origin}/join?cancelled=true`,
     });
 
-    // Update application with stripe_session_id
-    const { error: updateError } = await supabaseAdmin
-      .from('membership_applications')
-      .update({ stripe_session_id: session.id })
-      .eq('id', applicationId);
-
-    if (updateError) {
-      console.error('Failed to update application with session ID');
-    }
+    console.log('Checkout session created:', session.id);
 
     return new Response(
       JSON.stringify({ url: session.url }),

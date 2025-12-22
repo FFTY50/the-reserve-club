@@ -1,12 +1,10 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { useAuth } from '@/contexts/AuthContext';
-import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { ArrowLeft } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { TierBadge } from '@/components/TierBadge';
+import { StaffAdminHeader } from '@/components/StaffAdminHeader';
 
 interface Customer {
   id: string;
@@ -22,7 +20,6 @@ interface Customer {
 }
 
 export default function CustomerManagement() {
-  const { signOut } = useAuth();
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(true);
@@ -87,19 +84,11 @@ export default function CustomerManagement() {
   };
 
   return (
-    <div className="min-h-screen p-4 md:p-8">
-      <div className="max-w-4xl mx-auto space-y-6">
-        <div className="flex justify-between items-center">
-          <div className="flex items-center gap-4">
-            <Button variant="ghost" size="icon" asChild>
-              <Link to="/admin/dashboard">
-                <ArrowLeft className="h-5 w-5" />
-              </Link>
-            </Button>
-            <h1 className="text-3xl font-serif">Customer Management</h1>
-          </div>
-          <Button variant="ghost" size="sm" onClick={signOut}>Sign Out</Button>
-        </div>
+    <div className="min-h-screen">
+      <StaffAdminHeader />
+      <div className="p-4 md:p-8">
+        <div className="max-w-4xl mx-auto space-y-6">
+          <h1 className="text-3xl font-serif">Customer Management</h1>
 
         <Card>
           <CardHeader>
@@ -147,6 +136,7 @@ export default function CustomerManagement() {
             )}
           </CardContent>
         </Card>
+        </div>
       </div>
     </div>
   );

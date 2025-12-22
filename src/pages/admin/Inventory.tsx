@@ -1,15 +1,14 @@
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
-import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
-import { ChevronLeft, Package, AlertTriangle, CheckCircle, XCircle, Infinity, Save } from 'lucide-react';
+import { Package, AlertTriangle, CheckCircle, XCircle, Infinity, Save } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'react-hot-toast';
+import { StaffAdminHeader } from '@/components/StaffAdminHeader';
 
 interface TierInventory {
   tier_name: string;
@@ -22,7 +21,6 @@ interface TierInventory {
 }
 
 export default function Inventory() {
-  const { signOut } = useAuth();
   const [inventory, setInventory] = useState<TierInventory[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState<string | null>(null);
@@ -136,27 +134,18 @@ export default function Inventory() {
   const overallPercentage = totalCapacity > 0 ? Math.round((totalUsed / totalCapacity) * 100) : 0;
 
   return (
-    <div className="min-h-screen p-4 md:p-8">
-      <div className="max-w-4xl mx-auto space-y-6">
-        {/* Header */}
-        <div className="flex justify-between items-center">
-          <div className="flex items-center gap-4">
-            <Button variant="ghost" asChild>
-              <Link to="/admin/dashboard">
-                <ChevronLeft className="h-4 w-4 mr-2" />
-                Back
-              </Link>
-            </Button>
-            <div>
-              <h1 className="text-2xl font-serif flex items-center gap-2">
-                <Package className="h-6 w-6" />
-                Subscription Inventory
-              </h1>
-              <p className="text-muted-foreground">Manage membership tier availability</p>
-            </div>
+    <div className="min-h-screen">
+      <StaffAdminHeader />
+      <div className="p-4 md:p-8">
+        <div className="max-w-4xl mx-auto space-y-6">
+          {/* Header */}
+          <div>
+            <h1 className="text-2xl font-serif flex items-center gap-2">
+              <Package className="h-6 w-6" />
+              Subscription Inventory
+            </h1>
+            <p className="text-muted-foreground">Manage membership tier availability</p>
           </div>
-          <Button variant="ghost" size="sm" onClick={signOut}>Sign Out</Button>
-        </div>
 
         {/* Overall Summary */}
         <Card>
@@ -275,15 +264,16 @@ export default function Inventory() {
           })}
         </div>
 
-        {/* Info Note */}
-        <Card className="bg-muted/50">
-          <CardContent className="pt-4">
-            <p className="text-sm text-muted-foreground">
-              <strong>Note:</strong> Leave the max subscriptions field empty to allow unlimited subscriptions for that tier.
-              Changes take effect immediately and will prevent new signups when capacity is reached.
-            </p>
-          </CardContent>
-        </Card>
+          {/* Info Note */}
+          <Card className="bg-muted/50">
+            <CardContent className="pt-4">
+              <p className="text-sm text-muted-foreground">
+                <strong>Note:</strong> Leave the max subscriptions field empty to allow unlimited subscriptions for that tier.
+                Changes take effect immediately and will prevent new signups when capacity is reached.
+              </p>
+            </CardContent>
+          </Card>
+        </div>
       </div>
     </div>
   );

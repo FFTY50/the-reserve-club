@@ -3,11 +3,12 @@ import { useParams, Link } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Wine, Calendar, Sparkles } from 'lucide-react';
+import { Wine, Calendar, Sparkles } from 'lucide-react';
 import { TierBadge } from '@/components/TierBadge';
 import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
 import { useAuth } from '@/contexts/AuthContext';
+import { StaffAdminHeader } from '@/components/StaffAdminHeader';
 interface CustomerData {
   id: string;
   user_id: string;
@@ -206,10 +207,13 @@ export default function CustomerDetail() {
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center">
-        <div className="text-center">
-          <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent mx-auto"></div>
-          <p className="mt-4 text-muted-foreground">Loading customer details...</p>
+      <div className="min-h-screen">
+        <StaffAdminHeader />
+        <div className="flex items-center justify-center p-8">
+          <div className="text-center">
+            <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent mx-auto"></div>
+            <p className="mt-4 text-muted-foreground">Loading customer details...</p>
+          </div>
         </div>
       </div>
     );
@@ -217,12 +221,12 @@ export default function CustomerDetail() {
 
   if (!customer) {
     return (
-      <div className="min-h-screen p-4 md:p-8">
-        <div className="max-w-4xl mx-auto">
-          <Button asChild variant="ghost">
-            <Link to={dashboardPath}><ArrowLeft className="mr-2 h-4 w-4" />Back</Link>
-          </Button>
-          <p className="mt-4 text-center text-muted-foreground">Customer not found</p>
+      <div className="min-h-screen">
+        <StaffAdminHeader />
+        <div className="p-4 md:p-8">
+          <div className="max-w-4xl mx-auto">
+            <p className="text-center text-muted-foreground">Customer not found</p>
+          </div>
         </div>
       </div>
     );
@@ -231,11 +235,10 @@ export default function CustomerDetail() {
   const statusConfig = getStatusConfig();
 
   return (
-    <div className="min-h-screen p-4 md:p-8">
-      <div className="max-w-4xl mx-auto space-y-6">
-        <Button asChild variant="ghost">
-          <Link to={dashboardPath}><ArrowLeft className="mr-2 h-4 w-4" />Back to Dashboard</Link>
-        </Button>
+    <div className="min-h-screen">
+      <StaffAdminHeader />
+      <div className="p-4 md:p-8">
+        <div className="max-w-4xl mx-auto space-y-6">
 
         {/* Customer Header */}
         <Card>
@@ -356,6 +359,7 @@ export default function CustomerDetail() {
             )}
           </CardContent>
         </Card>
+        </div>
       </div>
     </div>
   );

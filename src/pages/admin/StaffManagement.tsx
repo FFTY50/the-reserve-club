@@ -1,14 +1,13 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
-import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { ArrowLeft, Check, X, Trash2, Plus, UserPlus } from 'lucide-react';
+import { Check, X, Trash2, UserPlus } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'react-hot-toast';
+import { StaffAdminHeader } from '@/components/StaffAdminHeader';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -51,7 +50,6 @@ interface StaffMember {
 }
 
 export default function StaffManagement() {
-  const { signOut } = useAuth();
   const [staff, setStaff] = useState<StaffMember[]>([]);
   const [loading, setLoading] = useState(true);
   const [addDialogOpen, setAddDialogOpen] = useState(false);
@@ -200,18 +198,12 @@ export default function StaffManagement() {
   const approvedStaff = staff.filter(s => s.is_approved);
 
   return (
-    <div className="min-h-screen p-4 md:p-8">
-      <div className="max-w-4xl mx-auto space-y-6">
-        <div className="flex justify-between items-center">
-          <div className="flex items-center gap-4">
-            <Button variant="ghost" size="icon" asChild>
-              <Link to="/admin/dashboard">
-                <ArrowLeft className="h-5 w-5" />
-              </Link>
-            </Button>
+    <div className="min-h-screen">
+      <StaffAdminHeader />
+      <div className="p-4 md:p-8">
+        <div className="max-w-4xl mx-auto space-y-6">
+          <div className="flex justify-between items-center">
             <h1 className="text-3xl font-serif">Staff Management</h1>
-          </div>
-          <div className="flex gap-2">
             <Dialog open={addDialogOpen} onOpenChange={setAddDialogOpen}>
               <DialogTrigger asChild>
                 <Button>
@@ -293,9 +285,7 @@ export default function StaffManagement() {
                 </DialogFooter>
               </DialogContent>
             </Dialog>
-            <Button variant="ghost" size="sm" onClick={signOut}>Sign Out</Button>
           </div>
-        </div>
 
         {/* Pending Approvals */}
         <Card>
@@ -412,6 +402,7 @@ export default function StaffManagement() {
             )}
           </CardContent>
         </Card>
+        </div>
       </div>
     </div>
   );

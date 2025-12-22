@@ -8,8 +8,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { TierBadge } from '@/components/TierBadge';
 import { supabase } from '@/integrations/supabase/client';
-import { ArrowLeft, Loader2 } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
+import { StaffAdminHeader } from '@/components/StaffAdminHeader';
 
 export default function AddPour() {
   const { id } = useParams();
@@ -99,30 +100,34 @@ export default function AddPour() {
 
   if (!customer) {
     return (
-      <div className="min-h-screen p-4 md:p-8">
-        <div className="max-w-2xl mx-auto">
-          <Card>
-            <CardContent className="p-6 text-center">
-              <p className="text-muted-foreground">Customer information not available</p>
-              <Button asChild className="mt-4">
-                <Link to="/staff/dashboard">Return to Dashboard</Link>
-              </Button>
-            </CardContent>
-          </Card>
+      <div className="min-h-screen">
+        <StaffAdminHeader />
+        <div className="p-4 md:p-8">
+          <div className="max-w-2xl mx-auto">
+            <Card>
+              <CardContent className="p-6 text-center">
+                <p className="text-muted-foreground">Customer information not available</p>
+                <Button asChild className="mt-4">
+                  <Link to="/staff/dashboard">Return to Dashboard</Link>
+                </Button>
+              </CardContent>
+            </Card>
+          </div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen p-4 md:p-8">
-      <div className="max-w-2xl mx-auto space-y-6">
-        <Button asChild variant="ghost">
-          <Link to={`/staff/customers/${id}`}>
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            Back to Customer
-          </Link>
-        </Button>
+    <div className="min-h-screen">
+      <StaffAdminHeader />
+      <div className="p-4 md:p-8">
+        <div className="max-w-2xl mx-auto space-y-6">
+          <Button asChild variant="ghost">
+            <Link to={`/staff/customers/${id}`}>
+              Back to Customer
+            </Link>
+          </Button>
 
         <Card>
           <CardHeader>
@@ -200,6 +205,7 @@ export default function AddPour() {
             </form>
           </CardContent>
         </Card>
+        </div>
       </div>
     </div>
   );

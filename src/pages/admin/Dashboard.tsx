@@ -4,10 +4,11 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Users, UserCheck, Wine, Settings, Shield, Package, AlertTriangle, QrCode } from 'lucide-react';
+import { Users, UserCheck, Wine, Settings, Shield, Package, AlertTriangle, QrCode, ScanLine } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { StaffAdminHeader } from '@/components/StaffAdminHeader';
+import { format } from 'date-fns';
 
 interface DashboardStats {
   totalCustomers: number;
@@ -25,6 +26,16 @@ interface TierInventory {
   status: 'available' | 'limited' | 'low' | 'critical' | 'sold_out';
 }
 
+interface QRVerificationLog {
+  id: string;
+  customer_id: string;
+  staff_id: string;
+  verification_result: string;
+  created_at: string;
+  customer_name?: string;
+  staff_name?: string;
+}
+
 export default function AdminDashboard() {
   const { userRole } = useAuth();
   const [stats, setStats] = useState<DashboardStats>({
@@ -34,11 +45,13 @@ export default function AdminDashboard() {
     totalPoursToday: 0,
   });
   const [inventory, setInventory] = useState<TierInventory[]>([]);
+  const [qrLogs, setQrLogs] = useState<QRVerificationLog[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     fetchStats();
     fetchInventory();
+    fetchQRLogs();
   }, []);
 
   const fetchStats = async () => {
@@ -79,6 +92,48 @@ export default function AdminDashboard() {
     }
   };
 
+  const fetchQRLogs = async () => {
+    try {
+      // Fetch recent QR verification logs (last 24 hours)
+      const yesterday = new Date();
+      yesterday.setHours(yesterday.getHours() - 24);
+      
+      const { data: logs, error } = await supabase
+        .from('qr_verification_logs')
+        .select('*')
+        .gte('created_at', yesterday.toISOString())
+        .order('created_at', { ascending: false })
+        .limit(20);
+      
+      if (error) throw error;
+      
+      if (logs && logs.length > 0) {
+        // Fetch customer and staff names
+        const customerIds = [...new Set(logs.map(l => l.customer_id))];
+        const staffIds = [...new Set(logs.map(l => l.staff_id))];
+        
+        const [{ data: customers }, { data: profiles }] = await Promise.all([
+          supabase.from('customers').select('id, user_id').in('id', customerIds),
+          supabase.from('profiles').select('id, first_name, last_name'),
+        ]);
+        
+        // Map customer_id -> user_id -> name
+        const customerUserMap = new Map(customers?.map(c => [c.id, c.user_id]) || []);
+        const profileMap = new Map(profiles?.map(p => [p.id, `${p.first_name || ''} ${p.last_name || ''}`.trim()]) || []);
+        
+        const enrichedLogs = logs.map(log => ({
+          ...log,
+          customer_name: profileMap.get(customerUserMap.get(log.customer_id) || '') || 'Unknown',
+          staff_name: profileMap.get(log.staff_id) || 'Unknown',
+        }));
+        
+        setQrLogs(enrichedLogs);
+      }
+    } catch (error) {
+      console.error('Error fetching QR logs:', error);
+    }
+  };
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'sold_out': return 'text-destructive';
@@ -86,6 +141,15 @@ export default function AdminDashboard() {
       case 'low': return 'text-orange-500';
       case 'limited': return 'text-amber-500';
       default: return 'text-green-500';
+    }
+  };
+
+  const getVerificationBadge = (result: string) => {
+    switch (result) {
+      case 'success': return <Badge className="bg-green-500">Success</Badge>;
+      case 'failed': return <Badge variant="destructive">Failed</Badge>;
+      case 'expired': return <Badge variant="secondary" className="bg-amber-500 text-white">Expired</Badge>;
+      default: return <Badge variant="outline">{result}</Badge>;
     }
   };
 
@@ -210,6 +274,46 @@ export default function AdminDashboard() {
             </CardContent>
           </Card>
         )}
+
+        {/* QR Verification Audit Log */}
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="flex items-center gap-2">
+              <ScanLine className="h-5 w-5" />
+              QR Verification Log
+              {qrLogs.some(l => l.verification_result !== 'success') && (
+                <Badge variant="secondary" className="bg-amber-500 text-white ml-2">
+                  {qrLogs.filter(l => l.verification_result !== 'success').length} issues
+                </Badge>
+              )}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {qrLogs.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No QR verifications in the last 24 hours.</p>
+            ) : (
+              <div className="space-y-2 max-h-64 overflow-y-auto">
+                {qrLogs.map((log) => (
+                  <div 
+                    key={log.id} 
+                    className={`flex items-center justify-between p-2 rounded-md text-sm ${
+                      log.verification_result !== 'success' ? 'bg-destructive/10' : 'bg-muted/50'
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      {getVerificationBadge(log.verification_result)}
+                      <span className="font-medium">{log.customer_name}</span>
+                      <span className="text-muted-foreground">by {log.staff_name}</span>
+                    </div>
+                    <span className="text-muted-foreground text-xs">
+                      {format(new Date(log.created_at), 'MMM d, h:mm a')}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
         {/* Quick Actions - only show staff view if not already in admin nav */}
           <Card>

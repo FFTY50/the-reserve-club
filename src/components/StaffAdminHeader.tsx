@@ -65,7 +65,7 @@ export function StaffAdminHeader() {
           </Link>
 
           {/* Navigation Links */}
-          <nav className="hidden md:flex items-center gap-1 flex-1">
+          <nav className="hidden lg:flex items-center gap-1 flex-1">
             {navItems.map((item) => (
               <Button
                 key={item.href}
@@ -95,8 +95,8 @@ export function StaffAdminHeader() {
             )}
           </nav>
 
-          {/* Mobile Navigation Dropdown */}
-          <div className="md:hidden flex-1">
+          {/* Mobile/Tablet Navigation Dropdown */}
+          <div className="lg:hidden flex-1">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="sm">

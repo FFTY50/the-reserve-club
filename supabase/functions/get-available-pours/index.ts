@@ -38,22 +38,67 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Look up customer_id from authenticated user (eliminates IDOR vulnerability)
-    const { data: customer, error: customerError } = await supabase
-      .from('customers')
-      .select('id')
-      .eq('user_id', user.id)
-      .single();
-
-    if (customerError || !customer) {
-      console.error('Customer lookup error:', customerError);
-      return new Response(JSON.stringify({ error: 'Customer not found' }), {
-        status: 404,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+    // Parse request body for optional customer_id (staff use case)
+    let requestedCustomerId: string | null = null;
+    try {
+      const body = await req.json();
+      requestedCustomerId = body.customer_id || null;
+    } catch {
+      // No body or invalid JSON - that's fine
     }
 
-    const customer_id = customer.id;
+    let customer_id: string;
+
+    if (requestedCustomerId) {
+      // Staff is requesting data for a specific customer - verify staff role
+      const { data: isStaff } = await supabase.rpc('has_role', {
+        _user_id: user.id,
+        _role: 'staff'
+      });
+
+      if (!isStaff) {
+        console.error('Non-staff user attempted to access another customer');
+        return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+          status: 403,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      // Verify the customer exists
+      const { data: customer, error: customerError } = await supabase
+        .from('customers')
+        .select('id')
+        .eq('id', requestedCustomerId)
+        .single();
+
+      if (customerError || !customer) {
+        console.error('Customer not found:', requestedCustomerId);
+        return new Response(JSON.stringify({ error: 'Customer not found' }), {
+          status: 404,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      customer_id = customer.id;
+      console.log('Staff accessing customer:', customer_id);
+    } else {
+      // Customer accessing their own data
+      const { data: customer, error: customerError } = await supabase
+        .from('customers')
+        .select('id')
+        .eq('user_id', user.id)
+        .single();
+
+      if (customerError || !customer) {
+        console.error('Customer lookup error:', customerError);
+        return new Response(JSON.stringify({ error: 'Customer not found' }), {
+          status: 404,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      customer_id = customer.id;
+    }
 
     // Call the database function to get available pours
     const { data, error } = await supabase.rpc('get_available_pours', {

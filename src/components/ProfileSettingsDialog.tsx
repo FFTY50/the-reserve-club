@@ -8,12 +8,21 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
-import { Loader2, User, Key } from 'lucide-react';
+import { Loader2, User, Key, CheckCircle } from 'lucide-react';
 
 interface ProfileSettingsDialogProps {
   open: boolean;
@@ -43,6 +52,7 @@ export function ProfileSettingsDialog({ open, onOpenChange }: ProfileSettingsDia
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [changingPassword, setChangingPassword] = useState(false);
+  const [showPasswordSuccessDialog, setShowPasswordSuccessDialog] = useState(false);
 
   useEffect(() => {
     if (open && user) {
@@ -126,10 +136,9 @@ export function ProfileSettingsDialog({ open, onOpenChange }: ProfileSettingsDia
 
       if (error) throw error;
 
-      toast.success('Password changed successfully');
-      setCurrentPassword('');
       setNewPassword('');
       setConfirmPassword('');
+      setShowPasswordSuccessDialog(true);
     } catch (error: any) {
       console.error('Error changing password:', error);
       toast.error(error.message || 'Failed to change password');
@@ -139,6 +148,7 @@ export function ProfileSettingsDialog({ open, onOpenChange }: ProfileSettingsDia
   };
 
   return (
+    <>
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
@@ -258,5 +268,26 @@ export function ProfileSettingsDialog({ open, onOpenChange }: ProfileSettingsDia
         </Tabs>
       </DialogContent>
     </Dialog>
+
+    {/* Password Change Success Dialog */}
+    <AlertDialog open={showPasswordSuccessDialog} onOpenChange={setShowPasswordSuccessDialog}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <div className="flex items-center gap-2">
+            <CheckCircle className="h-5 w-5 text-green-500" />
+            <AlertDialogTitle>Password Changed</AlertDialogTitle>
+          </div>
+          <AlertDialogDescription>
+            Your password has been successfully updated. Please use your new password the next time you sign in.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogAction onClick={() => setShowPasswordSuccessDialog(false)}>
+            OK
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+    </>
   );
 }

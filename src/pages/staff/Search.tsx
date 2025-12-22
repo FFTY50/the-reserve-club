@@ -1,12 +1,13 @@
 import { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { QRScanner } from '@/components/QRScanner';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { supabase } from '@/integrations/supabase/client';
-import { ArrowLeft, Loader2 } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
+import { StaffAdminHeader } from '@/components/StaffAdminHeader';
 
 export default function StaffSearch() {
   const navigate = useNavigate();
@@ -46,14 +47,10 @@ export default function StaffSearch() {
   };
 
   return (
-    <div className="min-h-screen p-4 md:p-8">
-      <div className="max-w-2xl mx-auto space-y-6">
-        <Button asChild variant="ghost">
-          <Link to="/staff/dashboard">
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            Back to Dashboard
-          </Link>
-        </Button>
+    <div className="min-h-screen">
+      <StaffAdminHeader />
+      <div className="p-4 md:p-8">
+        <div className="max-w-2xl mx-auto space-y-6">
 
         {showScanner ? (
           <>
@@ -111,6 +108,7 @@ export default function StaffSearch() {
             </CardContent>
           </Card>
         )}
+        </div>
       </div>
     </div>
   );

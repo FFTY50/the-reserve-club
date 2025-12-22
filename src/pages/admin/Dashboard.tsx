@@ -1,12 +1,13 @@
 import { Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
-import { Users, UserCheck, Wine, Settings, Shield, Package, AlertTriangle } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Users, UserCheck, Wine, Settings, Shield, Package, AlertTriangle, QrCode } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { StaffAdminHeader } from '@/components/StaffAdminHeader';
 
 interface DashboardStats {
   totalCustomers: number;
@@ -25,7 +26,7 @@ interface TierInventory {
 }
 
 export default function AdminDashboard() {
-  const { signOut } = useAuth();
+  const { userRole } = useAuth();
   const [stats, setStats] = useState<DashboardStats>({
     totalCustomers: 0,
     activeMembers: 0,
@@ -105,15 +106,14 @@ export default function AdminDashboard() {
   ];
 
   return (
-    <div className="min-h-screen p-4 md:p-8">
-      <div className="max-w-6xl mx-auto space-y-6">
-        <div className="flex justify-between items-center">
+    <div className="min-h-screen">
+      <StaffAdminHeader />
+      <div className="p-4 md:p-8">
+        <div className="max-w-6xl mx-auto space-y-6">
           <div>
             <h1 className="text-3xl font-serif">Admin Dashboard</h1>
             <p className="text-muted-foreground">Manage your wine club</p>
           </div>
-          <Button variant="ghost" size="sm" onClick={signOut}>Sign Out</Button>
-        </div>
 
         {/* Stats Grid */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -211,20 +211,21 @@ export default function AdminDashboard() {
           </Card>
         )}
 
-        {/* Quick Actions */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Quick Actions</CardTitle>
-          </CardHeader>
-          <CardContent className="flex flex-wrap gap-2">
-            <Button asChild variant="outline">
-              <Link to="/staff/dashboard">Go to Staff View</Link>
-            </Button>
-            <Button asChild variant="outline">
-              <Link to="/staff/search">Scan QR Code</Link>
-            </Button>
-          </CardContent>
-        </Card>
+        {/* Quick Actions - only show staff view if not already in admin nav */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Quick Actions</CardTitle>
+            </CardHeader>
+            <CardContent className="flex flex-wrap gap-2">
+              <Button asChild variant="outline">
+                <Link to="/staff/search">
+                  <QrCode className="mr-2 h-4 w-4" />
+                  Scan QR Code
+                </Link>
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
       </div>
     </div>
   );

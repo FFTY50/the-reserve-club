@@ -1,12 +1,12 @@
 import { Link } from 'react-router-dom';
-import { useAuth } from '@/contexts/AuthContext';
-import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { QrCode } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Input } from '@/components/ui/input';
 import { TierBadge } from '@/components/TierBadge';
+import { StaffAdminHeader } from '@/components/StaffAdminHeader';
 
 interface CustomerResult {
   id: string;
@@ -21,7 +21,6 @@ interface CustomerResult {
 }
 
 export default function StaffDashboard() {
-  const { signOut } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
   const [results, setResults] = useState<CustomerResult[]>([]);
   const [loading, setLoading] = useState(true);
@@ -113,12 +112,11 @@ export default function StaffDashboard() {
   };
 
   return (
-    <div className="min-h-screen p-4 md:p-8">
-      <div className="max-w-3xl mx-auto space-y-6">
-        <div className="flex justify-between items-center">
+    <div className="min-h-screen">
+      <StaffAdminHeader />
+      <div className="p-4 md:p-8">
+        <div className="max-w-3xl mx-auto space-y-6">
           <h1 className="text-3xl font-serif">Staff Dashboard</h1>
-          <Button variant="ghost" size="sm" onClick={signOut}>Sign Out</Button>
-        </div>
 
         <Button asChild size="lg" className="w-full h-20">
           <Link to="/staff/search" className="flex items-center justify-center gap-3">
@@ -187,6 +185,7 @@ export default function StaffDashboard() {
             </div>
           </CardContent>
         </Card>
+        </div>
       </div>
     </div>
   );

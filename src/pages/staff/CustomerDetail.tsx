@@ -7,7 +7,7 @@ import { ArrowLeft, Wine, Calendar, Sparkles } from 'lucide-react';
 import { TierBadge } from '@/components/TierBadge';
 import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
-
+import { useAuth } from '@/contexts/AuthContext';
 interface CustomerData {
   id: string;
   user_id: string;
@@ -39,6 +39,7 @@ interface PourRecord {
 
 export default function CustomerDetail() {
   const { id } = useParams();
+  const { userRole } = useAuth();
   const [customer, setCustomer] = useState<CustomerData | null>(null);
   const [membership, setMembership] = useState<MembershipData | null>(null);
   const [pours, setPours] = useState<PourRecord[]>([]);
@@ -46,6 +47,7 @@ export default function CustomerDetail() {
   const [summaryLoading, setSummaryLoading] = useState(false);
   const [loading, setLoading] = useState(true);
 
+  const dashboardPath = userRole === 'admin' ? '/admin/dashboard' : '/staff/dashboard';
   useEffect(() => {
     if (!id) {
       setLoading(false);
@@ -218,7 +220,7 @@ export default function CustomerDetail() {
       <div className="min-h-screen p-4 md:p-8">
         <div className="max-w-4xl mx-auto">
           <Button asChild variant="ghost">
-            <Link to="/staff/dashboard"><ArrowLeft className="mr-2 h-4 w-4" />Back</Link>
+            <Link to={dashboardPath}><ArrowLeft className="mr-2 h-4 w-4" />Back</Link>
           </Button>
           <p className="mt-4 text-center text-muted-foreground">Customer not found</p>
         </div>
@@ -232,7 +234,7 @@ export default function CustomerDetail() {
     <div className="min-h-screen p-4 md:p-8">
       <div className="max-w-4xl mx-auto space-y-6">
         <Button asChild variant="ghost">
-          <Link to="/staff/dashboard"><ArrowLeft className="mr-2 h-4 w-4" />Back to Dashboard</Link>
+          <Link to={dashboardPath}><ArrowLeft className="mr-2 h-4 w-4" />Back to Dashboard</Link>
         </Button>
 
         {/* Customer Header */}

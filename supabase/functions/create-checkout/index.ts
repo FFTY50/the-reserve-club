@@ -157,33 +157,30 @@ serve(async (req) => {
       );
     }
 
-    // Check tier availability if max_subscriptions is set
-    if (tier.max_subscriptions !== null) {
-      const { count, error: countError } = await supabaseAdmin
-        .from('memberships')
-        .select('*', { count: 'exact', head: true })
-        .eq('tier', tierName)
-        .eq('status', 'active');
+    // Use atomic inventory locking to check and reserve slot
+    const { data: reserveResult, error: reserveError } = await supabaseAdmin
+      .rpc('reserve_tier_slot', { 
+        _tier_name: tierName, 
+        _user_id: userId 
+      });
 
-      if (countError) {
-        console.error('Error counting subscriptions:', countError);
-        return new Response(
-          JSON.stringify({ error: 'Unable to verify availability' }),
-          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-
-      const currentCount = count || 0;
-      if (currentCount >= tier.max_subscriptions) {
-        console.log(`Tier ${tierName} is sold out: ${currentCount}/${tier.max_subscriptions}`);
-        return new Response(
-          JSON.stringify({ error: 'This membership tier is sold out. Please choose another tier.' }),
-          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-
-      console.log(`Tier ${tierName} availability: ${currentCount}/${tier.max_subscriptions}`);
+    if (reserveError) {
+      console.error('Error checking inventory with atomic lock:', reserveError);
+      return new Response(
+        JSON.stringify({ error: 'Unable to verify availability' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
+
+    if (!reserveResult.success) {
+      console.log(`Tier ${tierName} is sold out (atomic check): ${reserveResult.current}/${reserveResult.max}`);
+      return new Response(
+        JSON.stringify({ error: 'This membership tier is sold out. Please choose another tier.' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    console.log(`Tier ${tierName} availability (atomic): ${reserveResult.available}/${reserveResult.max}`);
 
     // Fetch user profile for email and name
     const { data: profile, error: profileError } = await supabaseAdmin

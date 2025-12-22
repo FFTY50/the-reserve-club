@@ -113,26 +113,21 @@ serve(async (req) => {
           throw new Error('Membership tier not found');
         }
 
-        // Check inventory availability (defense-in-depth)
-        if (tier.max_subscriptions !== null) {
-          const { count, error: countError } = await supabase
-            .from('memberships')
-            .select('*', { count: 'exact', head: true })
-            .eq('tier', tierName)
-            .eq('status', 'active');
+        // Use atomic inventory locking for defense-in-depth check
+        const { data: reserveResult, error: reserveError } = await supabase
+          .rpc('reserve_tier_slot', { 
+            _tier_name: tierName, 
+            _user_id: userId 
+          });
 
-          if (countError) {
-            console.error('Error checking inventory:', countError);
-            throw new Error('Unable to verify tier availability');
-          }
-
-          const currentCount = count || 0;
-          if (currentCount >= tier.max_subscriptions) {
-            console.error(`Tier ${tierName} is at capacity: ${currentCount}/${tier.max_subscriptions}`);
-            // Log but still process - user already paid. Admin will need to handle.
-            // In production, you might want to trigger a refund here
-            console.warn('ALERT: Subscription created for sold-out tier - manual review needed');
-          }
+        if (reserveError) {
+          console.error('Error checking inventory with atomic lock:', reserveError);
+          // Continue processing - user already paid
+          console.warn('ALERT: Could not verify inventory - manual review may be needed');
+        } else if (!reserveResult.success) {
+          console.error(`Tier ${tierName} is at capacity (atomic check): ${reserveResult.current}/${reserveResult.max}`);
+          // Log but still process - user already paid. Admin will need to handle.
+          console.warn('ALERT: Subscription created for sold-out tier - manual review needed');
         }
 
         // Update application status to approved

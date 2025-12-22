@@ -450,6 +450,13 @@ export type Database = {
         Returns: boolean
       }
       is_admin: { Args: { _user_id: string }; Returns: boolean }
+      reserve_tier_slot: {
+        Args: {
+          _tier_name: Database["public"]["Enums"]["customer_tier"]
+          _user_id: string
+        }
+        Returns: Json
+      }
     }
     Enums: {
       app_role: "customer" | "staff" | "admin"

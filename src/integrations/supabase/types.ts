@@ -315,6 +315,36 @@ export type Database = {
         }
         Relationships: []
       }
+      qr_verification_logs: {
+        Row: {
+          created_at: string
+          customer_id: string
+          id: string
+          ip_address: string | null
+          staff_id: string
+          token_jti: string | null
+          verification_result: string
+        }
+        Insert: {
+          created_at?: string
+          customer_id: string
+          id?: string
+          ip_address?: string | null
+          staff_id: string
+          token_jti?: string | null
+          verification_result: string
+        }
+        Update: {
+          created_at?: string
+          customer_id?: string
+          id?: string
+          ip_address?: string | null
+          staff_id?: string
+          token_jti?: string | null
+          verification_result?: string
+        }
+        Relationships: []
+      }
       rate_limits: {
         Row: {
           count: number

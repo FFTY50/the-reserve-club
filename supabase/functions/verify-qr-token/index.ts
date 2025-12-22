@@ -139,6 +139,7 @@ serve(async (req) => {
 
     try {
       const { payload } = await jose.jwtVerify(token, secret);
+      const tokenJti = payload.jti || `${payload.customer_id}-${payload.iat}`;
 
       // Verify customer still exists and is active (use admin client)
       const { data: customer, error: customerError } = await supabaseAdmin
@@ -149,6 +150,15 @@ serve(async (req) => {
         .single();
 
       if (customerError || !customer) {
+        // Log failed verification
+        await supabaseAdmin.from('qr_verification_logs').insert({
+          customer_id: payload.customer_id as string,
+          staff_id: user.id,
+          token_jti: tokenJti,
+          verification_result: 'failed',
+          ip_address: clientIp,
+        });
+        
         return new Response(JSON.stringify({ error: 'Customer not found or inactive' }), {
           status: 404,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -161,6 +171,17 @@ serve(async (req) => {
         .select('first_name, last_name')
         .eq('id', customer.user_id)
         .single();
+
+      // Log successful verification
+      await supabaseAdmin.from('qr_verification_logs').insert({
+        customer_id: customer.id,
+        staff_id: user.id,
+        token_jti: tokenJti,
+        verification_result: 'success',
+        ip_address: clientIp,
+      });
+      
+      console.log(`QR verified: customer=${customer.id}, staff=${user.id}`);
 
       return new Response(
         JSON.stringify({ 
@@ -179,6 +200,25 @@ serve(async (req) => {
       );
     } catch (jwtError) {
       console.error('JWT verification failed');
+      
+      // Log invalid/expired token attempt
+      try {
+        // Try to decode without verification to get customer_id for logging
+        const decoded = jose.decodeJwt(token);
+        if (decoded.customer_id) {
+          await supabaseAdmin.from('qr_verification_logs').insert({
+            customer_id: decoded.customer_id as string,
+            staff_id: user.id,
+            token_jti: decoded.jti || `${decoded.customer_id}-${decoded.iat}`,
+            verification_result: 'expired',
+            ip_address: clientIp,
+          });
+        }
+      } catch (decodeError) {
+        // Token is completely invalid, can't log customer_id
+        console.error('Could not decode invalid token for logging');
+      }
+      
       return new Response(
         JSON.stringify({ error: 'Invalid token' }),
         {

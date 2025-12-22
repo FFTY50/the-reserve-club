@@ -4,22 +4,25 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import bottlesImage from '@/assets/bottles-vino.jpeg';
 import logoImage from '@/assets/vino-logo-trans.png';
+
 export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
-  const {
-    signIn
-  } = useAuth();
+  const [error, setError] = useState('');
+  const { signIn } = useAuth();
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+    setError('');
     try {
       await signIn(email, password);
-    } catch (error) {
-      // Error handled in context
+    } catch (err: any) {
+      setError('Invalid email or password. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -43,28 +46,57 @@ export default function Login() {
               <p className="text-sm text-muted-foreground">Access Your Reserve Club Account</p>
             </div>
 
+            {error && (
+              <Alert variant="destructive" className="mb-4">
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            )}
+
             <form onSubmit={handleSubmit} className="space-y-6">
               <div className="space-y-2">
                 <Label htmlFor="email" className="text-foreground">Email</Label>
-                <Input id="email" type="email" placeholder="name@example.com" value={email} onChange={e => setEmail(e.target.value)} required className="bg-background/50 border-border" />
+                <Input
+                  id="email"
+                  type="email"
+                  placeholder="name@example.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                  className="bg-background/50 border-border"
+                />
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="password" className="text-foreground">Password</Label>
-                <Input id="password" type="password" value={password} onChange={e => setPassword(e.target.value)} required className="bg-background/50 border-border" />
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="password" className="text-foreground">Password</Label>
+                  <Link to="/forgot-password" className="text-xs text-primary hover:underline">
+                    Forgot password?
+                  </Link>
+                </div>
+                <Input
+                  id="password"
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  className="bg-background/50 border-border"
+                />
               </div>
 
-              <Button type="submit" className="w-full bg-primary text-primary-foreground hover:bg-primary/90" disabled={loading}>
+              <Button
+                type="submit"
+                className="w-full bg-primary text-primary-foreground hover:bg-primary/90"
+                disabled={loading}
+              >
                 {loading ? 'Signing in...' : 'Sign In'}
               </Button>
             </form>
 
             <div className="mt-6">
-              <div className="text-center text-sm space-y-2">
-                <Link to="/register" className="block text-primary hover:underline font-serif">
+              <div className="text-center text-sm">
+                <Link to="/register" className="text-primary hover:underline font-serif">
                   Need an account? Sign up
                 </Link>
-                
               </div>
             </div>
           </div>

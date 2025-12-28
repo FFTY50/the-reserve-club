@@ -144,7 +144,7 @@ serve(async (req) => {
       // Verify customer still exists and is active (use admin client)
       const { data: customer, error: customerError } = await supabaseAdmin
         .from('customers')
-        .select('id, tier, status, user_id, pours_balance')
+        .select('id, tier, status, user_id, secondary_user_id, pours_balance')
         .eq('id', payload.customer_id as string)
         .eq('status', 'active')
         .single();
@@ -165,11 +165,15 @@ serve(async (req) => {
         });
       }
 
-      // Get profile data
+      // Get profile data - use the user_id from the token payload to show correct name
+      // (could be primary or secondary user)
+      const isSecondary = payload.is_secondary as boolean;
+      const profileUserId = isSecondary ? customer.secondary_user_id : customer.user_id;
+      
       const { data: profile } = await supabaseAdmin
         .from('profiles')
         .select('first_name, last_name')
-        .eq('id', customer.user_id)
+        .eq('id', profileUserId)
         .single();
 
       // Log successful verification
@@ -192,6 +196,7 @@ serve(async (req) => {
             pours_balance: customer.pours_balance,
             first_name: profile?.first_name,
             last_name: profile?.last_name,
+            is_secondary: isSecondary,
           }
         }),
         {

@@ -34,14 +34,32 @@ serve(async (req) => {
       });
     }
 
-    // Get customer data
-    const { data: customer, error: customerError } = await supabaseClient
+    // Get customer data - check both primary and secondary user
+    let customer = null;
+    
+    // First try as primary user
+    const { data: primaryCustomer, error: primaryError } = await supabaseClient
       .from('customers')
-      .select('id, tier, user_id')
+      .select('id, tier, user_id, secondary_user_id')
       .eq('user_id', user.id)
       .maybeSingle();
+    
+    if (primaryCustomer) {
+      customer = { ...primaryCustomer, is_secondary: false };
+    } else {
+      // Try as secondary user
+      const { data: secondaryCustomer, error: secondaryError } = await supabaseClient
+        .from('customers')
+        .select('id, tier, user_id, secondary_user_id')
+        .eq('secondary_user_id', user.id)
+        .maybeSingle();
+      
+      if (secondaryCustomer) {
+        customer = { ...secondaryCustomer, is_secondary: true };
+      }
+    }
 
-    if (customerError || !customer) {
+    if (!customer) {
       return new Response(JSON.stringify({ error: 'Customer not found' }), {
         status: 404,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -57,6 +75,7 @@ serve(async (req) => {
       customer_id: customer.id,
       tier: customer.tier,
       user_id: user.id,
+      is_secondary: customer.is_secondary,
     })
       .setProtectedHeader({ alg: 'HS256' })
       .setIssuedAt()
@@ -68,7 +87,8 @@ serve(async (req) => {
       JSON.stringify({ 
         token,
         expires_at: new Date(Date.now() + 10 * 60 * 1000).toISOString(),
-        customer_id: customer.id
+        customer_id: customer.id,
+        is_secondary: customer.is_secondary
       }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },

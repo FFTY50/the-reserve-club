@@ -5,6 +5,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { TierBadge } from '@/components/TierBadge';
+import { FamilyMemberManager } from '@/components/FamilyMemberManager';
 import { ArrowLeft, CreditCard, Calendar, AlertCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import {
@@ -26,6 +27,9 @@ interface ProfileData {
   phone: string;
   tier: 'select' | 'premier' | 'elite' | 'household';
   member_since: string;
+  customer_id: string;
+  secondary_user_id: string | null;
+  is_secondary: boolean;
 }
 
 interface SubscriptionDetails {
@@ -69,14 +73,41 @@ export default function Account() {
         .eq('id', user.id)
         .single();
 
-      const { data: customer } = await supabase
+      // Check if user is primary on a customer record
+      let customer = null;
+      let isSecondary = false;
+      
+      const { data: primaryCustomer } = await supabase
         .from('customers')
-        .select('tier, member_since')
+        .select('id, tier, member_since, secondary_user_id')
         .eq('user_id', user.id)
-        .single();
+        .maybeSingle();
+
+      if (primaryCustomer) {
+        customer = primaryCustomer;
+      } else {
+        // Check if user is secondary
+        const { data: secondaryCustomer } = await supabase
+          .from('customers')
+          .select('id, tier, member_since, secondary_user_id')
+          .eq('secondary_user_id', user.id)
+          .maybeSingle();
+        
+        if (secondaryCustomer) {
+          customer = secondaryCustomer;
+          isSecondary = true;
+        }
+      }
 
       if (profile && customer) {
-        setProfileData({ ...profile, ...customer });
+        setProfileData({ 
+          ...profile, 
+          tier: customer.tier,
+          member_since: customer.member_since,
+          customer_id: customer.id,
+          secondary_user_id: customer.secondary_user_id,
+          is_secondary: isSecondary,
+        });
       }
     } catch (error) {
       console.error('Error fetching profile data:', error);
@@ -182,8 +213,13 @@ export default function Account() {
               <div className="space-y-3">
                 <div>
                   <p className="text-sm text-muted-foreground">Current Tier</p>
-                  <div className="mt-1">
+                  <div className="mt-1 flex items-center gap-2">
                     <TierBadge tier={profileData?.tier || 'select'} />
+                    {profileData?.is_secondary && (
+                      <span className="text-xs bg-primary/10 text-primary px-2 py-1 rounded">
+                        Family Member
+                      </span>
+                    )}
                   </div>
                 </div>
                 <div>
@@ -199,6 +235,16 @@ export default function Account() {
                 </div>
               </div>
             </div>
+
+            {/* Family Member Management - only show for Household tier primary members */}
+            {profileData?.tier === 'household' && !profileData?.is_secondary && (
+              <div className="border-t pt-6">
+                <FamilyMemberManager 
+                  customerId={profileData.customer_id} 
+                  currentSecondaryUserId={profileData.secondary_user_id}
+                />
+              </div>
+            )}
 
             {subscription && (
               <div className="border-t pt-6">

@@ -24,6 +24,7 @@ export type Database = {
           pours_balance: number
           preferences: Json | null
           qr_code_url: string | null
+          secondary_user_id: string | null
           signed_up_by_staff_id: string | null
           status: Database["public"]["Enums"]["customer_status"]
           tier: Database["public"]["Enums"]["customer_tier"]
@@ -40,6 +41,7 @@ export type Database = {
           pours_balance?: number
           preferences?: Json | null
           qr_code_url?: string | null
+          secondary_user_id?: string | null
           signed_up_by_staff_id?: string | null
           status?: Database["public"]["Enums"]["customer_status"]
           tier?: Database["public"]["Enums"]["customer_tier"]
@@ -56,6 +58,7 @@ export type Database = {
           pours_balance?: number
           preferences?: Json | null
           qr_code_url?: string | null
+          secondary_user_id?: string | null
           signed_up_by_staff_id?: string | null
           status?: Database["public"]["Enums"]["customer_status"]
           tier?: Database["public"]["Enums"]["customer_tier"]

@@ -6,7 +6,7 @@ import { TierBadge } from '@/components/TierBadge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
-import { QrCode, History, User, Calendar, LogOut, CreditCard } from 'lucide-react';
+import { QrCode, History, User, Calendar, LogOut, CreditCard, Users } from 'lucide-react';
 
 interface CustomerData {
   tier: 'select' | 'premier' | 'elite' | 'household';
@@ -291,6 +291,14 @@ export default function Dashboard() {
                 Account Settings
               </Button>
             </Link>
+            {customerData.tier === 'household' && (
+              <Link to="/account#family">
+                <Button variant="ghost" className="w-full justify-start h-14 text-base" size="lg">
+                  <Users className="h-5 w-5 mr-3" />
+                  Add Family Member
+                </Button>
+              </Link>
+            )}
             <a href="https://billing.stripe.com/p/login/9B600c6Bf2M89783ab6Na00" target="_blank" rel="noopener noreferrer">
               <Button variant="ghost" className="w-full justify-start h-14 text-base" size="lg">
                 <CreditCard className="h-5 w-5 mr-3" />

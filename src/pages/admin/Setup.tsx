@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { PasswordInput } from '@/components/ui/password-input';
 import { Label } from '@/components/ui/label';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'react-hot-toast';
@@ -180,9 +181,8 @@ export default function AdminSetup() {
 
             <div className="space-y-2">
               <Label htmlFor="password">Password</Label>
-              <Input
+              <PasswordInput
                 id="password"
-                type="password"
                 required
                 minLength={8}
                 value={formData.password}
@@ -192,9 +192,8 @@ export default function AdminSetup() {
 
             <div className="space-y-2">
               <Label htmlFor="confirmPassword">Confirm Password</Label>
-              <Input
+              <PasswordInput
                 id="confirmPassword"
-                type="password"
                 required
                 value={formData.confirmPassword}
                 onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
@@ -203,9 +202,8 @@ export default function AdminSetup() {
 
             <div className="space-y-2">
               <Label htmlFor="setupKey">Setup Key</Label>
-              <Input
+              <PasswordInput
                 id="setupKey"
-                type="password"
                 required
                 placeholder="Enter the setup key"
                 value={formData.setupKey}

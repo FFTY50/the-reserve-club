@@ -74,14 +74,24 @@ export function FamilyMemberManager({ customerId, currentSecondaryUserId }: Fami
 
     setLoading(true);
     try {
-      // Find user by email
-      const { data: profile, error: profileError } = await supabase
-        .from('profiles')
-        .select('id, first_name, last_name, email')
-        .eq('email', email.trim().toLowerCase())
-        .maybeSingle();
+      // Use edge function to look up user (bypasses RLS)
+      const { data: lookupData, error: lookupError } = await supabase.functions.invoke(
+        'lookup-user-by-email',
+        { body: { email: email.trim() } }
+      );
 
-      if (!profile) {
+      if (lookupError) {
+        console.error('Lookup error:', lookupError);
+        toast({
+          title: "Error",
+          description: "Failed to look up user. Please try again.",
+          variant: "destructive",
+        });
+        setLoading(false);
+        return;
+      }
+
+      if (!lookupData.found) {
         toast({
           title: "User not found",
           description: "No account found with that email. They need to create an account first.",
@@ -91,14 +101,7 @@ export function FamilyMemberManager({ customerId, currentSecondaryUserId }: Fami
         return;
       }
 
-      // Check if user already has their own membership
-      const { data: existingCustomer } = await supabase
-        .from('customers')
-        .select('id')
-        .eq('user_id', profile.id)
-        .maybeSingle();
-
-      if (existingCustomer) {
+      if (lookupData.hasOwnMembership) {
         toast({
           title: "Already a member",
           description: "This person already has their own membership.",
@@ -108,14 +111,7 @@ export function FamilyMemberManager({ customerId, currentSecondaryUserId }: Fami
         return;
       }
 
-      // Check if user is already a secondary on another account
-      const { data: existingSecondary } = await supabase
-        .from('customers')
-        .select('id')
-        .eq('secondary_user_id', profile.id)
-        .maybeSingle();
-
-      if (existingSecondary) {
+      if (lookupData.alreadyLinked) {
         toast({
           title: "Already linked",
           description: "This person is already linked to another family membership.",
@@ -124,6 +120,8 @@ export function FamilyMemberManager({ customerId, currentSecondaryUserId }: Fami
         setLoading(false);
         return;
       }
+
+      const profile = lookupData.profile;
 
       // Update customer with secondary user
       const { error: updateError } = await supabase

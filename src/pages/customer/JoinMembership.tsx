@@ -32,8 +32,6 @@ interface TierAvailability {
   monthly_price: number;
   monthly_pours: number;
   description: string | null;
-  max_subscriptions: number | null;
-  current_subscriptions: number;
   available: number | null;
   status: 'available' | 'limited' | 'low' | 'critical' | 'sold_out';
   urgency_message: string | null;

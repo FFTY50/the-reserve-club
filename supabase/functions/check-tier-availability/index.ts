@@ -12,8 +12,7 @@ interface TierAvailability {
   monthly_price: number;
   monthly_pours: number;
   description: string | null;
-  max_subscriptions: number | null;
-  current_subscriptions: number;
+  // Removed: max_subscriptions, current_subscriptions - business intelligence
   available: number | null;
   status: 'available' | 'limited' | 'low' | 'critical' | 'sold_out';
   urgency_message: string | null;
@@ -92,8 +91,8 @@ serve(async (req) => {
         monthly_price: tier.monthly_price,
         monthly_pours: tier.monthly_pours,
         description: tier.description,
-        max_subscriptions: maxSubs,
-        current_subscriptions: currentCount,
+        // Note: max_subscriptions, current_subscriptions excluded for security
+        // Only expose availability status and urgency messaging
         available,
         status,
         urgency_message: urgencyMessage,
@@ -102,7 +101,6 @@ serve(async (req) => {
 
     console.log('Tier availability calculated:', availability.map(t => ({ 
       tier: t.tier_name, 
-      current: t.current_subscriptions, 
       available: t.available,
       status: t.status 
     })));

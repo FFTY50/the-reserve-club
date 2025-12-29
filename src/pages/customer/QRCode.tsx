@@ -55,10 +55,11 @@ export default function QRCodePage() {
     if (!user) return;
 
     try {
+      // Primary OR secondary household member should be able to load the household customer record
       const { data: customer } = await supabase
         .from('customers')
         .select('id, activation_key, tier, member_since')
-        .eq('user_id', user.id)
+        .or(`user_id.eq.${user.id},secondary_user_id.eq.${user.id}`)
         .maybeSingle();
 
       const { data: profile } = await supabase
@@ -68,9 +69,16 @@ export default function QRCodePage() {
         .single();
 
       if (customer && profile) {
-        setCustomerData({ ...customer, ...profile });
+        setCustomerData({
+          id: customer.id,
+          activation_key: customer.activation_key ?? '',
+          tier: customer.tier,
+          member_since: customer.member_since,
+          first_name: profile.first_name,
+          last_name: profile.last_name,
+        });
       } else if (profile) {
-        // Check for pending application
+        // Check for pending application (for users without a customer record yet)
         const { data: application } = await supabase
           .from('membership_applications')
           .select('status')
@@ -86,7 +94,7 @@ export default function QRCodePage() {
             activation_key: '',
             tier: 'select',
             member_since: new Date().toISOString(),
-            ...profile
+            ...profile,
           });
         }
       }

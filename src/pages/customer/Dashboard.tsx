@@ -5,6 +5,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { TierBadge } from '@/components/TierBadge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { QrCode, History, User, Calendar, LogOut, CreditCard, Users } from 'lucide-react';
 
@@ -107,27 +108,32 @@ export default function Dashboard() {
           return;
         }
 
-        // If household tier and has secondary user, fetch their info
-        if (customer.tier === 'household' && customer.secondary_user_id) {
-          const { data: secondaryProfile } = await supabase
-            .from('profiles')
-            .select('first_name, last_name, email')
-            .eq('id', customer.secondary_user_id)
-            .single();
+        const { data: { session } } = await supabase.auth.getSession();
 
-          if (secondaryProfile) {
+        // If household tier, fetch linked family member (bypasses RLS)
+        if (customer.tier === 'household' && session) {
+          const { data: secondaryData, error: secondaryError } = await supabase.functions.invoke(
+            'get-household-secondary-member',
+            { headers: { Authorization: `Bearer ${session.access_token}` } }
+          );
+
+          if (secondaryError) {
+            console.error('Error fetching household member:', secondaryError);
+            setSecondaryMember(null);
+          } else if (secondaryData?.secondary) {
             setSecondaryMember({
-              firstName: secondaryProfile.first_name || '',
-              lastName: secondaryProfile.last_name || '',
-              email: secondaryProfile.email,
+              firstName: secondaryData.secondary.first_name || '',
+              lastName: secondaryData.secondary.last_name || '',
+              email: secondaryData.secondary.email,
             });
+          } else {
+            setSecondaryMember(null);
           }
         } else {
           setSecondaryMember(null);
         }
 
         // Get available pours from edge function
-        const { data: { session } } = await supabase.auth.getSession();
         const { data: poursData, error: poursError } = await supabase.functions.invoke(
           'get-available-pours',
           {
@@ -480,9 +486,7 @@ export default function Dashboard() {
                     <p className="text-sm text-muted-foreground">{secondaryMember.email}</p>
                   </div>
                   <div className="flex items-center gap-2">
-                    <span className="text-xs bg-green-500/10 text-green-600 px-2 py-1 rounded-full">
-                      Active
-                    </span>
+                    <Badge variant="secondary">Linked</Badge>
                   </div>
                 </div>
               ) : (

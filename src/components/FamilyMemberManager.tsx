@@ -46,14 +46,27 @@ export function FamilyMemberManager({ customerId, currentSecondaryUserId }: Fami
     
     setLoadingProfile(true);
     try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('first_name, last_name, email')
-        .eq('id', currentSecondaryUserId)
-        .single();
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
 
-      if (data) {
-        setSecondaryProfile(data);
+      const { data, error } = await supabase.functions.invoke(
+        'get-household-secondary-member',
+        { headers: { Authorization: `Bearer ${session.access_token}` } }
+      );
+
+      if (error) {
+        console.error('Error fetching household member:', error);
+        return;
+      }
+
+      if (data?.secondary) {
+        setSecondaryProfile({
+          first_name: data.secondary.first_name,
+          last_name: data.secondary.last_name,
+          email: data.secondary.email,
+        });
+      } else {
+        setSecondaryProfile(null);
       }
     } catch (error) {
       console.error('Error fetching secondary profile:', error);

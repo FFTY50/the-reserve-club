@@ -50,37 +50,41 @@ Deno.serve(async (req) => {
     let customer_id: string;
 
     if (requestedCustomerId) {
-      // Staff is requesting data for a specific customer - verify staff role
-      const { data: isStaff } = await supabase.rpc('has_role', {
-        _user_id: user.id,
-        _role: 'staff'
-      });
-
-      if (!isStaff) {
-        console.error('Non-staff user attempted to access another customer');
-        return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-          status: 403,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        });
-      }
-
-      // Verify the customer exists
+      // Requesting data for a specific customer (staff OR household owner/secondary)
       const { data: customer, error: customerError } = await supabase
         .from('customers')
-        .select('id')
+        .select('id, user_id, secondary_user_id')
         .eq('id', requestedCustomerId)
-        .single();
+        .maybeSingle();
 
       if (customerError || !customer) {
-        console.error('Customer not found:', requestedCustomerId);
+        console.error('Customer not found:', requestedCustomerId, customerError);
         return new Response(JSON.stringify({ error: 'Customer not found' }), {
           status: 404,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
       }
 
+      const { data: isStaff } = await supabase.rpc('has_role', {
+        _user_id: user.id,
+        _role: 'staff',
+      });
+
+      const isOwner = customer.user_id === user.id;
+      const isSecondary = customer.secondary_user_id === user.id;
+
+      if (!isStaff && !isOwner && !isSecondary) {
+        console.error('Unauthorized customer access attempt', {
+          requestedCustomerId,
+          userId: user.id,
+        });
+        return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+          status: 403,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
       customer_id = customer.id;
-      console.log('Staff accessing customer:', customer_id);
     } else {
       // Customer accessing their own data
       const { data: customer, error: customerError } = await supabase

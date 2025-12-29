@@ -433,6 +433,16 @@ export default function Dashboard() {
                   <LogOut className="h-4 w-4 mr-2" />
                   I'm a Household Member – Log Out
                 </Button>
+                <div className="text-center mt-3">
+                  <Button 
+                    variant="ghost" 
+                    size="sm"
+                    onClick={signOut} 
+                    className="text-muted-foreground"
+                  >
+                    Sign Out
+                  </Button>
+                </div>
               </div>
             )}
             

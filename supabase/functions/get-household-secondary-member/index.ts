@@ -45,7 +45,7 @@ serve(async (req) => {
     // Find the caller's household customer record (as the primary)
     const { data: customer, error: customerError } = await adminClient
       .from("customers")
-      .select("tier, status, secondary_user_id")
+      .select("tier, status, secondary_user_id, updated_at")
       .eq("user_id", user.id)
       .maybeSingle();
 
@@ -58,18 +58,20 @@ serve(async (req) => {
     }
 
     if (!customer || customer.status !== "active" || customer.tier !== "household") {
-      return new Response(JSON.stringify({ secondary: null }), {
+      return new Response(JSON.stringify({ secondary: null, memberCount: 0, addedAt: null }), {
         status: 200,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
     if (!customer.secondary_user_id) {
-      return new Response(JSON.stringify({ secondary: null }), {
+      return new Response(JSON.stringify({ secondary: null, memberCount: 0, addedAt: null }), {
         status: 200,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+
+    const addedAt = customer.updated_at;
 
     // Try profiles first
     const { data: profile, error: profileError } = await adminClient
@@ -83,7 +85,7 @@ serve(async (req) => {
     }
 
     if (profile?.email) {
-      return new Response(JSON.stringify({ secondary: profile }), {
+      return new Response(JSON.stringify({ secondary: profile, memberCount: 1, addedAt }), {
         status: 200,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -105,7 +107,7 @@ serve(async (req) => {
       email: (authUser?.user?.email ?? "") as string,
     };
 
-    return new Response(JSON.stringify({ secondary }), {
+    return new Response(JSON.stringify({ secondary, memberCount: 1, addedAt }), {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

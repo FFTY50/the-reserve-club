@@ -26,6 +26,12 @@ interface FamilyMemberData {
   member_since: string;
 }
 
+interface SecondaryMemberInfo {
+  firstName: string;
+  lastName: string;
+  email: string;
+}
+
 export default function Dashboard() {
   const { user, signOut } = useAuth();
   const [customerData, setCustomerData] = useState<CustomerData | null>(null);
@@ -33,6 +39,7 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [firstName, setFirstName] = useState('');
   const [hasHadMembershipBefore, setHasHadMembershipBefore] = useState(false);
+  const [secondaryMember, setSecondaryMember] = useState<SecondaryMemberInfo | null>(null);
 
   useEffect(() => {
     fetchCustomerData();
@@ -86,7 +93,7 @@ export default function Dashboard() {
       // First check if user is a primary customer
       const { data: customer } = await supabase
         .from('customers')
-        .select('id, tier, total_pours_lifetime, member_since, status')
+        .select('id, tier, total_pours_lifetime, member_since, status, secondary_user_id')
         .eq('user_id', user.id)
         .single();
 
@@ -98,6 +105,25 @@ export default function Dashboard() {
           setHasHadMembershipBefore(true);
           setLoading(false);
           return;
+        }
+
+        // If household tier and has secondary user, fetch their info
+        if (customer.tier === 'household' && customer.secondary_user_id) {
+          const { data: secondaryProfile } = await supabase
+            .from('profiles')
+            .select('first_name, last_name, email')
+            .eq('id', customer.secondary_user_id)
+            .single();
+
+          if (secondaryProfile) {
+            setSecondaryMember({
+              firstName: secondaryProfile.first_name || '',
+              lastName: secondaryProfile.last_name || '',
+              email: secondaryProfile.email,
+            });
+          }
+        } else {
+          setSecondaryMember(null);
         }
 
         // Get available pours from edge function
@@ -434,6 +460,45 @@ export default function Dashboard() {
             </p>
           </CardContent>
         </Card>
+
+        {/* Family Member Card - Only for household tier */}
+        {customerData.tier === 'household' && (
+          <Card className="border-primary/20">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-lg">
+                <Users className="w-5 h-5" />
+                Household Member
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {secondaryMember ? (
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="font-medium">
+                      {secondaryMember.firstName} {secondaryMember.lastName}
+                    </p>
+                    <p className="text-sm text-muted-foreground">{secondaryMember.email}</p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs bg-green-500/10 text-green-600 px-2 py-1 rounded-full">
+                      Active
+                    </span>
+                  </div>
+                </div>
+              ) : (
+                <div className="text-center py-4">
+                  <p className="text-muted-foreground text-sm">No family member added yet</p>
+                  <Link to="/account#family">
+                    <Button variant="outline" size="sm" className="mt-3">
+                      <Users className="h-4 w-4 mr-2" />
+                      Add Family Member
+                    </Button>
+                  </Link>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
 
         {/* Events Calendar - Coming Soon */}
         <Card>

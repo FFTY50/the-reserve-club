@@ -410,8 +410,35 @@ export default function Dashboard() {
                   <a href="mailto:support@vinosabor.com">Contact Support</a>
                 </Button>
               )}
-              <Button variant="outline" onClick={signOut}>Sign Out</Button>
             </div>
+            
+            {/* Secondary Household Member Option */}
+            {!hasHadMembershipBefore && (
+              <div className="border-t border-border pt-4 mt-2">
+                <div className="flex items-start gap-3 mb-3">
+                  <Users className="h-5 w-5 text-muted-foreground mt-0.5 flex-shrink-0" />
+                  <div>
+                    <p className="text-sm font-medium">Being added to a Household membership?</p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      If someone is adding you to their Household plan, you don't need to complete the survey. 
+                      Log out and check back after they've added you to their account.
+                    </p>
+                  </div>
+                </div>
+                <Button 
+                  variant="outline" 
+                  onClick={signOut} 
+                  className="w-full"
+                >
+                  <LogOut className="h-4 w-4 mr-2" />
+                  I'm a Household Member – Log Out
+                </Button>
+              </div>
+            )}
+            
+            {hasHadMembershipBefore && (
+              <Button variant="outline" onClick={signOut} className="w-full">Sign Out</Button>
+            )}
           </CardContent>
         </Card>
       </div>

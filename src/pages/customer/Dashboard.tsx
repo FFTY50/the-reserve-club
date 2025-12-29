@@ -31,6 +31,7 @@ interface SecondaryMemberInfo {
   firstName: string;
   lastName: string;
   email: string;
+  addedAt: string | null;
 }
 
 export default function Dashboard() {
@@ -41,6 +42,7 @@ export default function Dashboard() {
   const [firstName, setFirstName] = useState('');
   const [hasHadMembershipBefore, setHasHadMembershipBefore] = useState(false);
   const [secondaryMember, setSecondaryMember] = useState<SecondaryMemberInfo | null>(null);
+  const [householdMemberCount, setHouseholdMemberCount] = useState(0);
 
   useEffect(() => {
     fetchCustomerData();
@@ -120,14 +122,18 @@ export default function Dashboard() {
           if (secondaryError) {
             console.error('Error fetching household member:', secondaryError);
             setSecondaryMember(null);
+            setHouseholdMemberCount(0);
           } else if (secondaryData?.secondary) {
             setSecondaryMember({
               firstName: secondaryData.secondary.first_name || '',
               lastName: secondaryData.secondary.last_name || '',
               email: secondaryData.secondary.email,
+              addedAt: secondaryData.addedAt || null,
             });
+            setHouseholdMemberCount(secondaryData.memberCount || 0);
           } else {
             setSecondaryMember(null);
+            setHouseholdMemberCount(0);
           }
         } else {
           setSecondaryMember(null);
@@ -471,23 +477,39 @@ export default function Dashboard() {
         {customerData.tier === 'household' && (
           <Card className="border-primary/20">
             <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-lg">
-                <Users className="w-5 h-5" />
-                Household Member
+              <CardTitle className="flex items-center justify-between text-lg">
+                <div className="flex items-center gap-2">
+                  <Users className="w-5 h-5" />
+                  Household Member
+                </div>
+                <Badge variant="outline" className="text-xs">
+                  {householdMemberCount}/1 Added
+                </Badge>
               </CardTitle>
             </CardHeader>
             <CardContent>
               {secondaryMember ? (
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="font-medium">
-                      {secondaryMember.firstName} {secondaryMember.lastName}
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="font-medium">
+                        {secondaryMember.firstName} {secondaryMember.lastName}
+                      </p>
+                      <p className="text-sm text-muted-foreground">{secondaryMember.email}</p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Badge variant="secondary">Linked</Badge>
+                    </div>
+                  </div>
+                  {secondaryMember.addedAt && (
+                    <p className="text-xs text-muted-foreground">
+                      Added {new Date(secondaryMember.addedAt).toLocaleDateString('en-US', {
+                        month: 'short',
+                        day: 'numeric',
+                        year: 'numeric',
+                      })}
                     </p>
-                    <p className="text-sm text-muted-foreground">{secondaryMember.email}</p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Badge variant="secondary">Linked</Badge>
-                  </div>
+                  )}
                 </div>
               ) : (
                 <div className="text-center py-4">

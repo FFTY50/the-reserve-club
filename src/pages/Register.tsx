@@ -72,6 +72,16 @@ export default function Register() {
               <h1 className="text-4xl font-serif font-bold tracking-tight">The Reserve Club</h1>
               <p className="text-muted-foreground">Create your account</p>
             </div>
+            
+            {/* Family member info box */}
+            <div className="bg-primary/10 border border-primary/20 rounded-lg p-4 text-center">
+              <p className="text-sm text-primary font-medium">
+                Being invited as a family member?
+              </p>
+              <p className="text-xs text-muted-foreground mt-1">
+                Just create your account — no payment required. Your primary member will link you.
+              </p>
+            </div>
           </div>
 
           <Card className="border-none shadow-none bg-transparent">

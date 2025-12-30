@@ -107,7 +107,8 @@ serve(async (req) => {
       .eq('user_id', user.id)
       .single();
 
-    if (roleError || !roleData || roleData.role !== 'staff') {
+    // Allow both staff and admin roles to scan QR codes
+    if (roleError || !roleData || (roleData.role !== 'staff' && roleData.role !== 'admin')) {
       return new Response(
         JSON.stringify({ error: 'Access denied' }),
         { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

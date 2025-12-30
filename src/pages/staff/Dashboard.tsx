@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { QrCode } from 'lucide-react';
+import { QrCode, Wine } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Input } from '@/components/ui/input';
@@ -118,15 +118,26 @@ export default function StaffDashboard() {
         <div className="max-w-3xl mx-auto space-y-6">
           <h1 className="text-3xl font-serif">Staff Dashboard</h1>
 
-        <Button asChild size="lg" className="w-full h-20">
-          <Link to="/staff/search" className="flex items-center justify-center gap-3">
-            <QrCode className="h-8 w-8" />
-            <div className="text-center">
-              <div className="font-semibold text-lg">Scan Customer QR Code</div>
-              <div className="text-sm opacity-90">Quick customer lookup</div>
-            </div>
-          </Link>
-        </Button>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <Button asChild size="lg" className="h-20">
+            <Link to="/staff/search" className="flex items-center justify-center gap-3">
+              <QrCode className="h-8 w-8" />
+              <div className="text-center">
+                <div className="font-semibold text-lg">Scan QR Code</div>
+                <div className="text-sm opacity-90">Quick customer lookup</div>
+              </div>
+            </Link>
+          </Button>
+          <Button asChild size="lg" variant="outline" className="h-20">
+            <Link to="/staff/manual-pour" className="flex items-center justify-center gap-3">
+              <Wine className="h-8 w-8" />
+              <div className="text-center">
+                <div className="font-semibold text-lg">Manual Pour</div>
+                <div className="text-sm opacity-90">No QR code needed</div>
+              </div>
+            </Link>
+          </Button>
+        </div>
 
         <Card>
           <CardHeader>

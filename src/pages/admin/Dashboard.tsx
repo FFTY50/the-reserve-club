@@ -327,6 +327,12 @@ export default function AdminDashboard() {
                   Scan QR Code
                 </Link>
               </Button>
+              <Button asChild variant="outline">
+                <Link to="/admin/manual-pour">
+                  <Wine className="mr-2 h-4 w-4" />
+                  Manual Pour Redemption
+                </Link>
+              </Button>
             </CardContent>
           </Card>
         </div>

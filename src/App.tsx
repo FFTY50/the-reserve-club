@@ -29,6 +29,7 @@ import CustomerManagement from "./pages/admin/CustomerManagement";
 import TierSettings from "./pages/admin/TierSettings";
 import AdminSetup from "./pages/admin/Setup";
 import Inventory from "./pages/admin/Inventory";
+import ManualPour from "./pages/admin/ManualPour";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -136,6 +137,11 @@ const App = () => (
             <Route path="/admin/inventory" element={
               <ProtectedRoute requiredRole="admin">
                 <Inventory />
+              </ProtectedRoute>
+            } />
+            <Route path="/admin/manual-pour" element={
+              <ProtectedRoute requiredRole="admin">
+                <ManualPour />
               </ProtectedRoute>
             } />
             

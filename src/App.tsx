@@ -111,6 +111,11 @@ const App = () => (
                 <AddMembership />
               </ProtectedRoute>
             } />
+            <Route path="/staff/manual-pour" element={
+              <ProtectedRoute requiredRole="staff">
+                <ManualPour />
+              </ProtectedRoute>
+            } />
             
             {/* Admin Routes */}
             <Route path="/admin/setup" element={<AdminSetup />} />

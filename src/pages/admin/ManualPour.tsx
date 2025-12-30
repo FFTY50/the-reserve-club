@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -25,6 +25,8 @@ interface CustomerResult {
 
 export default function ManualPour() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const isStaffRoute = location.pathname.startsWith('/staff');
   const [searchQuery, setSearchQuery] = useState('');
   const [searching, setSearching] = useState(false);
   const [customers, setCustomers] = useState<CustomerResult[]>([]);
@@ -203,7 +205,7 @@ export default function ManualPour() {
       <StaffAdminHeader />
       <div className="p-4 md:p-8">
         <div className="max-w-2xl mx-auto space-y-6">
-          <Button variant="ghost" onClick={() => navigate('/admin/dashboard')}>
+          <Button variant="ghost" onClick={() => navigate(isStaffRoute ? '/staff/dashboard' : '/admin/dashboard')}>
             <ArrowLeft className="mr-2 h-4 w-4" />
             Back to Dashboard
           </Button>

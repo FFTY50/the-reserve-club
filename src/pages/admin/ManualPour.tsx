@@ -6,6 +6,16 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { TierBadge } from '@/components/TierBadge';
 import { supabase } from '@/integrations/supabase/client';
 import { Loader2, Search, Wine, ArrowLeft, User } from 'lucide-react';
@@ -37,6 +47,7 @@ export default function ManualPour() {
   const [locationValue, setLocationValue] = useState<string>('');
   const [notes, setNotes] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
 
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -118,7 +129,7 @@ export default function ManualPour() {
     setNotes('');
   };
 
-  const handleSubmitPour = async (e: React.FormEvent) => {
+  const handleFormSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!selectedCustomer) return;
@@ -127,7 +138,15 @@ export default function ManualPour() {
       toast.error('Please select a location');
       return;
     }
+    
+    // Show confirmation dialog instead of submitting directly
+    setShowConfirmDialog(true);
+  };
 
+  const handleConfirmPour = async () => {
+    if (!selectedCustomer) return;
+
+    setShowConfirmDialog(false);
     setSubmitting(true);
     try {
       const qty = parseInt(quantity);
@@ -313,7 +332,7 @@ export default function ManualPour() {
                   </Button>
 
                   {/* Pour Form */}
-                  <form onSubmit={handleSubmitPour} className="space-y-4">
+                  <form onSubmit={handleFormSubmit} className="space-y-4">
                     <div className="space-y-2">
                       <Label htmlFor="quantity">Quantity</Label>
                       <Input
@@ -377,6 +396,30 @@ export default function ManualPour() {
           </Card>
         </div>
       </div>
+
+      {/* Confirmation Dialog */}
+      <AlertDialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirm Pour Redemption</AlertDialogTitle>
+            <AlertDialogDescription className="space-y-2">
+              <p>You are about to redeem:</p>
+              <div className="bg-muted p-3 rounded-md mt-2">
+                <p className="font-semibold">{quantity} pour{parseInt(quantity) > 1 ? 's' : ''}</p>
+                <p className="text-sm">For: {selectedCustomer?.first_name} {selectedCustomer?.last_name}</p>
+                <p className="text-sm">Location: {locationValue}</p>
+              </div>
+              <p className="text-sm mt-2">This action cannot be undone.</p>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmPour}>
+              Confirm Redemption
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

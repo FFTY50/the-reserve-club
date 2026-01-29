@@ -206,6 +206,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "memberships_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers_public"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "memberships_recorded_by_staff_id_fkey"
             columns: ["recorded_by_staff_id"]
             isOneToOne: false
@@ -264,6 +271,13 @@ export type Database = {
             columns: ["customer_id"]
             isOneToOne: false
             referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pours_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers_public"
             referencedColumns: ["id"]
           },
           {
@@ -461,6 +475,86 @@ export type Database = {
       }
     }
     Views: {
+      customers_public: {
+        Row: {
+          created_at: string | null
+          id: string | null
+          last_activity: string | null
+          member_since: string | null
+          pours_balance: number | null
+          preferences: Json | null
+          qr_code_url: string | null
+          secondary_user_id: string | null
+          signed_up_by_staff_id: string | null
+          status: Database["public"]["Enums"]["customer_status"] | null
+          tier: Database["public"]["Enums"]["customer_tier"] | null
+          total_pours_lifetime: number | null
+          updated_at: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string | null
+          last_activity?: string | null
+          member_since?: string | null
+          pours_balance?: number | null
+          preferences?: Json | null
+          qr_code_url?: string | null
+          secondary_user_id?: string | null
+          signed_up_by_staff_id?: string | null
+          status?: Database["public"]["Enums"]["customer_status"] | null
+          tier?: Database["public"]["Enums"]["customer_tier"] | null
+          total_pours_lifetime?: number | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string | null
+          last_activity?: string | null
+          member_since?: string | null
+          pours_balance?: number | null
+          preferences?: Json | null
+          qr_code_url?: string | null
+          secondary_user_id?: string | null
+          signed_up_by_staff_id?: string | null
+          status?: Database["public"]["Enums"]["customer_status"] | null
+          tier?: Database["public"]["Enums"]["customer_tier"] | null
+          total_pours_lifetime?: number | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "customers_signed_up_by_staff_id_fkey"
+            columns: ["signed_up_by_staff_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "customers_signed_up_by_staff_id_fkey"
+            columns: ["signed_up_by_staff_id"]
+            isOneToOne: false
+            referencedRelation: "staff_profile_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "customers_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "customers_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "staff_profile_view"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       staff_profile_view: {
         Row: {
           created_at: string | null
@@ -478,6 +572,23 @@ export type Database = {
     Functions: {
       cleanup_old_rate_limits: { Args: never; Returns: undefined }
       get_available_pours: { Args: { customer_uuid: string }; Returns: number }
+      get_family_customer_data: {
+        Args: { p_secondary_user_id: string }
+        Returns: {
+          created_at: string
+          id: string
+          last_activity: string
+          member_since: string
+          pours_balance: number
+          qr_code_url: string
+          secondary_user_id: string
+          status: Database["public"]["Enums"]["customer_status"]
+          tier: Database["public"]["Enums"]["customer_tier"]
+          total_pours_lifetime: number
+          updated_at: string
+          user_id: string
+        }[]
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]

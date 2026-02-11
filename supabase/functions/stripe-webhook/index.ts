@@ -264,10 +264,10 @@ serve(async (req) => {
         // Get subscription to extract billing period
         const subscription = await stripe.subscriptions.retrieve(subscriptionId);
 
-        // Find and update membership with new billing period
+        // Find and update membership with new billing period (also fetch tier)
         const { data: membership, error: fetchError } = await supabase
           .from('memberships')
-          .select('id, customer_id')
+          .select('id, customer_id, tier')
           .eq('stripe_subscription_id', subscriptionId)
           .eq('status', 'active')
           .single();
@@ -277,12 +277,26 @@ serve(async (req) => {
           break;
         }
 
+        // Fetch tier definition for monthly_pours
+        const { data: tierDef, error: tierError } = await supabase
+          .from('tier_definitions')
+          .select('monthly_pours')
+          .eq('tier_name', membership.tier)
+          .single();
+
+        if (tierError || !tierDef) {
+          console.error('Tier definition not found for tier:', membership.tier);
+        }
+
+        const newPeriodStart = new Date(subscription.current_period_start * 1000).toISOString();
+        const newPeriodEnd = new Date(subscription.current_period_end * 1000).toISOString();
+
         // Update membership with billing period from Stripe
         const { error: membershipError } = await supabase
           .from('memberships')
           .update({
-            billing_period_start: new Date(subscription.current_period_start * 1000).toISOString(),
-            billing_period_end: new Date(subscription.current_period_end * 1000).toISOString()
+            billing_period_start: newPeriodStart,
+            billing_period_end: newPeriodEnd
           })
           .eq('id', membership.id);
 
@@ -290,13 +304,18 @@ serve(async (req) => {
           console.error('Error updating membership billing period:', membershipError);
         }
 
-        // Update customer last activity
+        // Reset pours_balance and update last activity
+        const customerUpdate: Record<string, unknown> = { last_activity: new Date().toISOString() };
+        if (tierDef) {
+          customerUpdate.pours_balance = tierDef.monthly_pours;
+        }
+
         await supabase
           .from('customers')
-          .update({ last_activity: new Date().toISOString() })
+          .update(customerUpdate)
           .eq('id', membership.customer_id);
 
-        console.log(`Billing period updated for customer ${membership.customer_id}`);
+        console.log(`Renewal processed for customer ${membership.customer_id}: tier=${membership.tier}, pours_balance reset to ${tierDef?.monthly_pours ?? 'unknown'}, period=${newPeriodStart} to ${newPeriodEnd}`);
         break;
       }
 

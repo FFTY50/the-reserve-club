@@ -55,12 +55,27 @@ export default function QRCodePage() {
     if (!user) return;
 
     try {
-      // Primary OR secondary household member should be able to load the household customer record
+      // Try as primary user first
       const { data: customer } = await supabase
         .from('customers')
         .select('id, activation_key, tier, member_since')
-        .or(`user_id.eq.${user.id},secondary_user_id.eq.${user.id}`)
+        .eq('user_id', user.id)
         .maybeSingle();
+
+      // If not found, check as secondary household member via RPC (RLS blocks direct query)
+      let resolvedCustomer = customer;
+      if (!resolvedCustomer) {
+        const { data: familyRows } = await supabase
+          .rpc('get_family_customer_data', { p_secondary_user_id: user.id });
+        if (familyRows && familyRows.length > 0 && familyRows[0].status === 'active') {
+          resolvedCustomer = {
+            id: familyRows[0].id,
+            activation_key: '',
+            tier: familyRows[0].tier,
+            member_since: familyRows[0].member_since,
+          };
+        }
+      }
 
       const { data: profile } = await supabase
         .from('profiles')
@@ -68,12 +83,12 @@ export default function QRCodePage() {
         .eq('id', user.id)
         .single();
 
-      if (customer && profile) {
+      if (resolvedCustomer && profile) {
         setCustomerData({
-          id: customer.id,
-          activation_key: customer.activation_key ?? '',
-          tier: customer.tier,
-          member_since: customer.member_since,
+          id: resolvedCustomer.id,
+          activation_key: resolvedCustomer.activation_key ?? '',
+          tier: resolvedCustomer.tier,
+          member_since: resolvedCustomer.member_since,
           first_name: profile.first_name,
           last_name: profile.last_name,
         });

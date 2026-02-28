@@ -86,15 +86,17 @@ export default function Account() {
       if (primaryCustomer) {
         customer = primaryCustomer;
       } else {
-        // Check if user is secondary
-        const { data: secondaryCustomer } = await supabase
-          .from('customers')
-          .select('id, tier, member_since, secondary_user_id')
-          .eq('secondary_user_id', user.id)
-          .maybeSingle();
+        // Check if user is secondary via RPC (RLS blocks direct query on secondary_user_id)
+        const { data: familyRows } = await supabase
+          .rpc('get_family_customer_data', { p_secondary_user_id: user.id });
         
-        if (secondaryCustomer) {
-          customer = secondaryCustomer;
+        if (familyRows && familyRows.length > 0 && familyRows[0].status === 'active') {
+          customer = {
+            id: familyRows[0].id,
+            tier: familyRows[0].tier,
+            member_since: familyRows[0].member_since,
+            secondary_user_id: familyRows[0].secondary_user_id,
+          };
           isSecondary = true;
         }
       }

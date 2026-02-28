@@ -161,13 +161,14 @@ export default function Dashboard() {
           tier_max_pours: poursData?.tier_max || 0,
         });
       } else {
-        // Check if user is a secondary/family member
-        const { data: familyCustomer } = await supabase
-          .from('customers')
-          .select('id, tier, member_since, status, user_id')
-          .eq('secondary_user_id', user.id)
-          .eq('status', 'active')
-          .single();
+        // Check if user is a secondary/family member using SECURITY DEFINER function
+        // (direct table query fails because RLS only allows user_id = auth.uid())
+        const { data: familyRows } = await supabase
+          .rpc('get_family_customer_data', { p_secondary_user_id: user.id });
+
+        const familyCustomer = (familyRows && familyRows.length > 0 && familyRows[0].status === 'active')
+          ? familyRows[0]
+          : null;
 
         if (familyCustomer && familyCustomer.tier === 'household') {
           // Get primary member's name

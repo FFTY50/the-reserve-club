@@ -18,12 +18,17 @@ interface CustomerData {
   total_pours_lifetime: number;
   member_since: string;
   preferences: any;
+  secondary_user_id: string | null;
   profiles: {
     first_name: string;
     last_name: string;
     email: string;
     phone: string;
   };
+  secondary_profile?: {
+    first_name: string;
+    last_name: string;
+  } | null;
 }
 
 interface MembershipData {
@@ -62,7 +67,7 @@ export default function CustomerDetail() {
       // Fetch customer by route param (supports both user_id and customer id)
       const { data: byUser } = await supabase
         .from('customers')
-        .select('id, user_id, tier, status, total_pours_lifetime, member_since, preferences')
+        .select('id, user_id, tier, status, total_pours_lifetime, member_since, preferences, secondary_user_id')
         .eq('user_id', routeId)
         .maybeSingle();
 
@@ -70,7 +75,7 @@ export default function CustomerDetail() {
       if (!baseCustomer) {
         const { data: byId } = await supabase
           .from('customers')
-          .select('id, user_id, tier, status, total_pours_lifetime, member_since, preferences')
+          .select('id, user_id, tier, status, total_pours_lifetime, member_since, preferences, secondary_user_id')
           .eq('id', routeId)
           .maybeSingle();
         baseCustomer = byId as any;
@@ -94,6 +99,17 @@ export default function CustomerDetail() {
         { body: { customer_id: baseCustomer.id } }
       );
 
+      // Fetch secondary member profile if household tier
+      let secondaryProfile = null;
+      if (baseCustomer.tier === 'household' && baseCustomer.secondary_user_id) {
+        const { data: secProfile } = await supabase
+          .from('staff_profile_view' as any)
+          .select('first_name, last_name')
+          .eq('id', baseCustomer.secondary_user_id)
+          .maybeSingle();
+        secondaryProfile = secProfile as any;
+      }
+
       const customerWithProfile: CustomerData = {
         id: baseCustomer.id,
         user_id: baseCustomer.user_id,
@@ -103,12 +119,14 @@ export default function CustomerDetail() {
         total_pours_lifetime: baseCustomer.total_pours_lifetime,
         member_since: baseCustomer.member_since,
         preferences: baseCustomer.preferences,
+        secondary_user_id: baseCustomer.secondary_user_id,
         profiles: {
           first_name: (profile as any)?.first_name || '',
           last_name: (profile as any)?.last_name || '',
           email: '',
           phone: ''
-        }
+        },
+        secondary_profile: secondaryProfile,
       };
 
       setCustomer(customerWithProfile);
@@ -295,6 +313,32 @@ export default function CustomerDetail() {
             </div>
           </CardContent>
         </Card>
+
+        {/* Household Secondary Member */}
+        {customer.tier === 'household' && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                👥 Household Member
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {customer.secondary_profile ? (
+                <div className="flex items-center gap-3">
+                  <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-semibold">
+                    {customer.secondary_profile.first_name?.[0]}{customer.secondary_profile.last_name?.[0]}
+                  </div>
+                  <div>
+                    <p className="font-medium">{customer.secondary_profile.first_name} {customer.secondary_profile.last_name}</p>
+                    <p className="text-sm text-muted-foreground">Secondary member — shares pour allocation</p>
+                  </div>
+                </div>
+              ) : (
+                <p className="text-muted-foreground text-sm italic">No secondary member linked yet</p>
+              )}
+            </CardContent>
+          </Card>
+        )}
 
         {/* Customer Profile Summary */}
         {customer.preferences && (

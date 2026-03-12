@@ -63,9 +63,7 @@ export default function Dashboard() {
       });
 
       if (error) {
-        if (process.env.NODE_ENV === 'development') {
-          console.error('Subscription verification error:', error);
-        }
+        console.error('Subscription verification error:', error);
         return;
       }
 
@@ -74,9 +72,7 @@ export default function Dashboard() {
         await fetchCustomerData();
       }
     } catch (error) {
-      if (process.env.NODE_ENV === 'development') {
-        console.error('Error verifying subscription:', error);
-      }
+      console.error('Error verifying subscription:', error);
     }
   };
 

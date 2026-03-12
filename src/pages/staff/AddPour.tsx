@@ -182,7 +182,7 @@ export default function AddPour() {
                   id="quantity"
                   type="number"
                   min="1"
-                  max={customer.pours_balance}
+                  max={availablePours ?? 0}
                   value={quantity}
                   onChange={(e) => setQuantity(e.target.value)}
                   required

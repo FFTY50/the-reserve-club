@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useLocation, useNavigate, useParams, Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -11,6 +11,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { StaffAdminHeader } from '@/components/StaffAdminHeader';
+import { Skeleton } from '@/components/ui/skeleton';
 
 export default function AddPour() {
   const { id } = useParams();
@@ -22,6 +23,28 @@ export default function AddPour() {
   const [locationValue, setLocationValue] = useState<string>('');
   const [notes, setNotes] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [availablePours, setAvailablePours] = useState<number | null>(null);
+  const [loadingPours, setLoadingPours] = useState(true);
+
+  // Fetch live available pours on mount
+  useEffect(() => {
+    if (!id) return;
+    const fetchAvailablePours = async () => {
+      try {
+        const { data, error } = await supabase.functions.invoke('get-available-pours', {
+          body: { customer_id: id },
+        });
+        if (error || !data) throw new Error('Failed to fetch available pours');
+        setAvailablePours(data.available_pours);
+      } catch {
+        // Fall back to route state if edge function fails
+        setAvailablePours(customer?.pours_balance ?? 0);
+      } finally {
+        setLoadingPours(false);
+      }
+    };
+    fetchAvailablePours();
+  }, [id, customer?.pours_balance]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

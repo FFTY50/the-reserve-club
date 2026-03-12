@@ -63,9 +63,7 @@ export default function Dashboard() {
       });
 
       if (error) {
-        if (process.env.NODE_ENV === 'development') {
-          console.error('Subscription verification error:', error);
-        }
+        console.error('Subscription verification error:', error);
         return;
       }
 

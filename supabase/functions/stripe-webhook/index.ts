@@ -261,7 +261,7 @@ serve(async (req) => {
         
         const subscriptionId = subIdResult.data;
 
-        // Get subscription to extract billing period
+        // Get subscription to extract billing period and current price
         const subscription = await stripe.subscriptions.retrieve(subscriptionId);
 
         // Find and update membership with new billing period (also fetch tier)
@@ -277,15 +277,47 @@ serve(async (req) => {
           break;
         }
 
-        // Fetch tier definition for monthly_pours
+        // Detect tier change: compare Stripe's current price ID against tier_definitions
+        const stripePriceId = subscription.items.data[0]?.price.id;
+        let resolvedTier = membership.tier;
+
+        if (stripePriceId) {
+          const { data: matchedTier, error: tierLookupError } = await supabase
+            .from('tier_definitions')
+            .select('tier_name, monthly_pours, monthly_price')
+            .eq('stripe_price_id', stripePriceId)
+            .single();
+
+          if (tierLookupError || !matchedTier) {
+            console.warn(`No tier_definition found for stripe_price_id=${stripePriceId}. Falling back to existing tier.`);
+          } else if (matchedTier.tier_name !== membership.tier) {
+            // Tier changed in Stripe! Update membership and customer
+            console.log(`Tier change detected: ${membership.tier} → ${matchedTier.tier_name} (price_id=${stripePriceId})`);
+            resolvedTier = matchedTier.tier_name;
+
+            // Update membership tier and price
+            await supabase
+              .from('memberships')
+              .update({ tier: matchedTier.tier_name, monthly_price: matchedTier.monthly_price })
+              .eq('id', membership.id);
+
+            // Update customer tier
+            await supabase
+              .from('customers')
+              .update({ tier: matchedTier.tier_name })
+              .eq('id', membership.customer_id);
+          }
+        }
+
+        // Fetch tier definition for monthly_pours (use resolved tier in case it changed)
         const { data: tierDef, error: tierError } = await supabase
           .from('tier_definitions')
           .select('monthly_pours')
-          .eq('tier_name', membership.tier)
+          .eq('tier_name', resolvedTier)
           .single();
 
         if (tierError || !tierDef) {
-          console.error('Tier definition not found for tier:', membership.tier);
+          console.error('Tier definition not found for tier:', resolvedTier);
         }
 
         const newPeriodStart = new Date(subscription.current_period_start * 1000).toISOString();
@@ -315,7 +347,7 @@ serve(async (req) => {
           .update(customerUpdate)
           .eq('id', membership.customer_id);
 
-        console.log(`Renewal processed for customer ${membership.customer_id}: tier=${membership.tier}, pours_balance reset to ${tierDef?.monthly_pours ?? 'unknown'}, period=${newPeriodStart} to ${newPeriodEnd}`);
+        console.log(`Renewal processed for customer ${membership.customer_id}: tier=${resolvedTier}, pours_balance reset to ${tierDef?.monthly_pours ?? 'unknown'}, period=${newPeriodStart} to ${newPeriodEnd}`);
         break;
       }
 

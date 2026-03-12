@@ -83,6 +83,7 @@ Replace `price_PROD_*_ID` with actual Price IDs from Step 1.
 4. **Events to send**:
    - `checkout.session.completed`
    - `customer.subscription.deleted`
+   - `customer.subscription.updated`
    - `invoice.payment_succeeded`
    - `invoice.payment_failed`
 5. Click **Add Endpoint**
@@ -159,7 +160,7 @@ UPDATE tier_definitions SET stripe_price_id = 'price_test_HOUSEHOLD_ID' WHERE ti
 
 1. In Stripe Dashboard → Developers → Webhooks → Add endpoint
 2. URL: `https://qqacjsczbrzerilgapqa.supabase.co/functions/v1/stripe-webhook`
-3. Events: `checkout.session.completed`, `customer.subscription.deleted`, `invoice.payment_succeeded`, `invoice.payment_failed`
+3. Events: `checkout.session.completed`, `customer.subscription.deleted`, `customer.subscription.updated`, `invoice.payment_succeeded`, `invoice.payment_failed`
 4. Copy webhook signing secret
 5. Add to Lovable Cloud secrets as `STRIPE_WEBHOOK_SECRET`
 

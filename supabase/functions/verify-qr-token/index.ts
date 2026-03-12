@@ -166,6 +166,11 @@ serve(async (req) => {
         });
       }
 
+      // Get accurate available pours via RPC
+      const { data: livePoursResult } = await supabaseAdmin
+        .rpc('get_available_pours', { customer_uuid: customer.id });
+      const livePours = typeof livePoursResult === 'number' ? livePoursResult : customer.pours_balance;
+
       // Get profile data - use the user_id from the token payload to show correct name
       // (could be primary or secondary user)
       const isSecondary = payload.is_secondary as boolean;
@@ -194,7 +199,7 @@ serve(async (req) => {
           customer: {
             id: customer.id,
             tier: customer.tier,
-            pours_balance: customer.pours_balance,
+            pours_balance: livePours,
             first_name: profile?.first_name,
             last_name: profile?.last_name,
             is_secondary: isSecondary,

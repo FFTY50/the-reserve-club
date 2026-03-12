@@ -218,7 +218,7 @@ export default function AddPour() {
               <Button
                 type="submit"
                 className="w-full"
-                disabled={submitting || parseInt(quantity) > customer.pours_balance}
+                disabled={submitting || loadingPours || parseInt(quantity) > (availablePours ?? 0)}
               >
                 {submitting ? (
                   <>

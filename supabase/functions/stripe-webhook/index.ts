@@ -358,6 +358,65 @@ serve(async (req) => {
         break;
       }
 
+      case 'customer.subscription.updated': {
+        const subscription = event.data.object as Stripe.Subscription;
+        console.log('Subscription updated:', subscription.id);
+
+        const stripePriceId = subscription.items.data[0]?.price.id;
+        if (!stripePriceId) {
+          console.warn('No price ID found on updated subscription');
+          break;
+        }
+
+        // Look up the tier matching this Stripe price
+        const { data: matchedTier, error: tierLookupError } = await supabase
+          .from('tier_definitions')
+          .select('tier_name, monthly_pours, monthly_price')
+          .eq('stripe_price_id', stripePriceId)
+          .single();
+
+        if (tierLookupError || !matchedTier) {
+          console.warn(`No tier_definition found for stripe_price_id=${stripePriceId}`);
+          break;
+        }
+
+        // Find active membership by stripe_subscription_id
+        const { data: membership, error: membershipError } = await supabase
+          .from('memberships')
+          .select('id, customer_id, tier')
+          .eq('stripe_subscription_id', subscription.id)
+          .eq('status', 'active')
+          .single();
+
+        if (membershipError || !membership) {
+          console.warn('No active membership found for subscription:', subscription.id);
+          break;
+        }
+
+        // Only update if tier actually changed
+        if (matchedTier.tier_name === membership.tier) {
+          console.log('Tier unchanged, skipping update');
+          break;
+        }
+
+        console.log(`Tier change detected: ${membership.tier} → ${matchedTier.tier_name}`);
+
+        // Update membership tier and price
+        await supabase
+          .from('memberships')
+          .update({ tier: matchedTier.tier_name, monthly_price: matchedTier.monthly_price })
+          .eq('id', membership.id);
+
+        // Update customer tier and reset pours to new allocation
+        await supabase
+          .from('customers')
+          .update({ tier: matchedTier.tier_name, pours_balance: matchedTier.monthly_pours })
+          .eq('id', membership.customer_id);
+
+        console.log(`Subscription ${subscription.id} synced: tier=${matchedTier.tier_name}, pours_balance=${matchedTier.monthly_pours}`);
+        break;
+      }
+
       default:
         console.log('Unhandled event type:', event.type);
     }

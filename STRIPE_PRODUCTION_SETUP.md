@@ -83,6 +83,7 @@ Replace `price_PROD_*_ID` with actual Price IDs from Step 1.
 4. **Events to send**:
    - `checkout.session.completed`
    - `customer.subscription.deleted`
+   - `customer.subscription.updated`
    - `invoice.payment_succeeded`
    - `invoice.payment_failed`
 5. Click **Add Endpoint**

@@ -163,9 +163,13 @@ export default function AddPour() {
                   <p className="font-semibold">
                     {customer.first_name} {customer.last_name}
                   </p>
-                  <p className="text-sm text-muted-foreground">
-                    Available: {customer.pours_balance} pours
-                  </p>
+                  {loadingPours ? (
+                    <Skeleton className="h-4 w-32 mt-1" />
+                  ) : (
+                    <p className="text-sm text-muted-foreground">
+                      Available: {availablePours ?? 0} pours
+                    </p>
+                  )}
                 </div>
                 <TierBadge tier={customer.tier} />
               </div>

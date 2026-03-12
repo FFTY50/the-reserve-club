@@ -389,6 +389,39 @@ export type Database = {
         }
         Relationships: []
       }
+      sync_logs: {
+        Row: {
+          changes: Json
+          created_at: string
+          customer_id: string | null
+          error_message: string | null
+          id: string
+          membership_id: string | null
+          status: string
+          sync_type: string
+        }
+        Insert: {
+          changes?: Json
+          created_at?: string
+          customer_id?: string | null
+          error_message?: string | null
+          id?: string
+          membership_id?: string | null
+          status?: string
+          sync_type?: string
+        }
+        Update: {
+          changes?: Json
+          created_at?: string
+          customer_id?: string | null
+          error_message?: string | null
+          id?: string
+          membership_id?: string | null
+          status?: string
+          sync_type?: string
+        }
+        Relationships: []
+      }
       system_settings: {
         Row: {
           created_at: string | null

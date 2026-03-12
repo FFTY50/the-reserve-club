@@ -1,69 +1,75 @@
 
 
-# Complete Stripe Safety Net Implementation
+# Fix Tricia Motes' Pour Reset + Prevent Future Missed Resets
 
-This is the consolidated plan covering everything discussed: the sync function, sync_logs audit table, AddPour/QR UI fixes, daily cron scheduling, and Wallace Reese test account cleanup.
+## Problem
 
-## Changes
+Tricia Motes (Select tier, 2 pours/month) had her billing period renewal around Feb 4, but the billing period in the database was never updated from Jan 4 - Feb 4 to Feb 4 - Mar 4. Because the `get_available_pours` function counts pours within the billing period window, her 2 pours from Jan 18 still count against her — making it look like she has 0 available.
 
-### 1. Create `sync_logs` database table (migration)
+The Stripe `invoice.payment_succeeded` webhook is supposed to update billing period dates on renewal, but it appears the event was either not received or failed silently.
 
-New table for persistent audit trail:
-- Columns: `id`, `sync_type` (text), `customer_id` (uuid, nullable), `membership_id` (uuid, nullable), `changes` (jsonb), `status` (text: success/skipped/error), `error_message` (text, nullable), `created_at` (timestamptz)
-- RLS: admin-only SELECT, open INSERT (service role uses it)
+## Root Causes
 
-### 2. Create `sync-stripe-subscriptions` edge function
+1. The billing period was not updated when Stripe renewed the subscription around Feb 4
+2. The `pours_balance` column on the `customers` table is never reset by any process — it's essentially stale data
+3. No fallback mechanism exists if a webhook is missed
 
-New file: `supabase/functions/sync-stripe-subscriptions/index.ts`
+## Plan
 
-- Queries all active memberships that have a `stripe_subscription_id`
-- For each, fetches the subscription from the Stripe API
-- Compares billing period, tier (via `stripe_price_id` match to `tier_definitions`), and price
-- Updates any mismatches in `memberships` and `customers` tables
-- Inserts a `sync_logs` row for each membership processed, recording old/new values in the `changes` jsonb column
-- Inserts a summary row at the end with totals (processed, updated, skipped, errored)
-- Add to `supabase/config.toml` with `verify_jwt = false`
+### Step 1: Immediate Data Fix for Tricia Motes
 
-### 3. Fix AddPour page stale display (`src/pages/staff/AddPour.tsx`)
+Manually update her membership billing period to the current Stripe cycle. We need to check Stripe for her actual current period dates, but based on the Jan 4 start, her new period should be approximately Feb 4 - Mar 4.
 
-The page currently shows `customer.pours_balance` from route state (stale) and uses it for the input `max` and button disable check. Fix:
+- Update `memberships` table: set `billing_period_start` and `billing_period_end` to the new cycle
+- Update `customers.pours_balance` to 2 (her Select tier allocation) for display consistency
 
-- Add a `useEffect` that calls `get-available-pours` edge function on mount using the customer ID
-- Store the result in local state (`availablePours`)
-- Replace `customer.pours_balance` references with the live value for display, input `max`, and submit button disable logic
-- Show a loading spinner while fetching
+### Step 2: Improve the `invoice.payment_succeeded` Webhook Handler
 
-### 4. Fix `verify-qr-token` to return accurate pours
+Modify `supabase/functions/stripe-webhook/index.ts` to also reset `pours_balance` on the customer record when a renewal payment succeeds:
 
-In `supabase/functions/verify-qr-token/index.ts` (line 148-198):
+- After updating the membership billing period, also update `customers.pours_balance` to the tier's `monthly_pours` value
+- Add the tier lookup to get the correct pour allocation
+- Add more detailed logging so missed renewals are easier to diagnose
 
-- After fetching the customer record, call the `get_available_pours` database RPC instead of returning raw `pours_balance`
-- Return the RPC result as `pours_balance` in the response so downstream consumers (AddPour) get accurate data even from route state
+### Step 3: Add a Safety Net — Billing Period Fallback
 
-### 5. Schedule daily sync with pg_cron (data insert, not migration)
+Update the `get_available_pours` database function to handle expired billing periods more gracefully:
 
-Enable `pg_cron` and `pg_net` extensions, then create a cron job:
-- Runs daily at 4 AM UTC
-- Calls `sync-stripe-subscriptions` via `net.http_post`
-- Uses the project URL and anon key
+- If `billing_period_end` is in the past (meaning a renewal was missed in the DB), treat the current date as being in a new period and return full pour allocation
+- This prevents customers from being stuck at 0 pours if a webhook is missed
 
-### 6. Delete Wallace Reese III test account (data operation)
+## Technical Details
 
-Delete related records in order: `pours` -> `memberships` -> `customers` -> `user_roles` -> `profiles` for the known test account IDs.
+### Files Modified
 
-### 7. Update `STRIPE_PRODUCTION_SETUP.md`
+- `supabase/functions/stripe-webhook/index.ts` — Add `pours_balance` reset and tier lookup in the `invoice.payment_succeeded` handler, plus improved logging
+- `supabase/migrations/` — New migration to update the `get_available_pours` function with expired-period fallback logic
 
-Document the sync function and daily cron job.
+### Data Changes
 
-## File Summary
+- Update Tricia Motes' membership (`id: 07190b09-0c31-47b8-95dd-0f5927461334`): set billing period to Feb 4 - Mar 4
+- Update Tricia Motes' customer record (`id: d7608936-baa2-4417-a21d-475aa46dced3`): set `pours_balance = 2`
 
-| File | Action |
-|------|--------|
-| `supabase/functions/sync-stripe-subscriptions/index.ts` | Create |
-| `supabase/config.toml` | Add function config |
-| `src/pages/staff/AddPour.tsx` | Fix stale pours display |
-| `supabase/functions/verify-qr-token/index.ts` | Use `get_available_pours` RPC |
-| `STRIPE_PRODUCTION_SETUP.md` | Document sync + cron |
-| Database migration | Create `sync_logs` table |
-| Database insert | pg_cron job + Wallace Reese cleanup |
+### Webhook Handler Changes (invoice.payment_succeeded)
+
+```
+Current flow:
+  1. Retrieve subscription from Stripe
+  2. Find membership by stripe_subscription_id
+  3. Update membership billing_period_start and billing_period_end
+  4. Update customer last_activity
+
+New flow:
+  1. Retrieve subscription from Stripe
+  2. Find membership by stripe_subscription_id (also fetch tier)
+  3. Look up tier_definitions to get monthly_pours
+  4. Update membership billing_period_start and billing_period_end
+  5. Reset customers.pours_balance to monthly_pours
+  6. Update customer last_activity
+  7. Log detailed renewal info
+```
+
+### get_available_pours Function Update
+
+Add a check: if `billing_period_end < now()`, assume we're in a new period and return the full tier allocation. This acts as a safety net so customers are never blocked due to a missed webhook.
 

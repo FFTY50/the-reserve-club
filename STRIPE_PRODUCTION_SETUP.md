@@ -169,3 +169,37 @@ UPDATE tier_definitions SET stripe_price_id = 'price_test_HOUSEHOLD_ID' WHERE ti
 - Success: `4242 4242 4242 4242`
 - Decline: `4000 0000 0000 0341`
 - 3D Secure: `4000 0027 6000 3184`
+
+---
+
+## Daily Stripe Sync (Safety Net)
+
+A `sync-stripe-subscriptions` edge function runs daily at **4 AM UTC** via `pg_cron` to ensure the database stays in sync with Stripe. It:
+
+1. Queries all active memberships with a `stripe_subscription_id`
+2. Fetches each subscription from the Stripe API
+3. Compares billing period, tier (via `stripe_price_id` match), and price
+4. Updates any mismatches in `memberships` and `customers` tables
+5. Logs every action to the `sync_logs` table for auditing
+
+### Monitoring
+
+View sync results in the `sync_logs` table (admin-only access):
+
+```sql
+-- See recent sync summaries
+SELECT * FROM sync_logs WHERE sync_type = 'batch_sync_summary' ORDER BY created_at DESC LIMIT 10;
+
+-- See all changes from last sync
+SELECT * FROM sync_logs WHERE created_at > now() - interval '1 day' ORDER BY created_at DESC;
+```
+
+### Manual Trigger
+
+To run the sync manually:
+
+```bash
+curl -X POST https://qqacjsczbrzerilgapqa.supabase.co/functions/v1/sync-stripe-subscriptions \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer YOUR_ANON_KEY"
+```

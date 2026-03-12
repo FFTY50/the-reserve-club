@@ -17,3 +17,6 @@ verify_jwt = true
 
 [functions.verify-subscription-status]
 verify_jwt = true
+
+[functions.sync-stripe-subscriptions]
+verify_jwt = false

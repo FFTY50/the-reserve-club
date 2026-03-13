@@ -154,9 +154,6 @@ export function PromotionalAccountsSection() {
     }
   };
 
-  const handleResendNotification = async (_promo: PromoAccount) => {
-    // Removed — no custom notification emails available
-  };
 
   const activePromos = promos.filter(p => p.status === 'active');
   const expiredPromos = promos.filter(p => p.status !== 'active');

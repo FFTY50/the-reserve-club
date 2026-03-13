@@ -1,9 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-import * as React from 'npm:react@18.3.1';
-import { renderAsync } from 'npm:@react-email/components@0.0.22';
-import { PromoWelcomeEmail } from '../_shared/email-templates/promo-welcome.tsx';
-import { PromoUpgradeEmail } from '../_shared/email-templates/promo-upgrade.tsx';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -137,223 +133,51 @@ serve(async (req) => {
         });
       }
 
-      case 'resend_welcome': {
-        // Resend the branded promo welcome email (for new users who haven't set their password)
+      case 'resend_welcome':
+      case 'resend_reset': {
+        // Send a password reset email via the built-in auth system.
+        // This flows through auth-email-hook and sends the branded recovery email.
         const siteUrl = Deno.env.get('SITE_URL') || 'https://vinosaborapp.com';
 
-        // Get tier display name
-        const { data: tierDef } = await supabaseAdmin
-          .from('tier_definitions')
-          .select('display_name')
-          .eq('tier_name', promo.tier)
-          .single();
+        const { error: resetError } = await supabaseAdmin.auth.resetPasswordForEmail(
+          promo.email,
+          { redirectTo: `${siteUrl}/reset-password` }
+        );
 
-        const displayName = tierDef?.display_name || promo.tier;
+        if (resetError) {
+          return new Response(JSON.stringify({ error: 'Failed to send reset email: ' + resetError.message }), {
+            status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
 
-        // Generate a fresh password reset link
-        const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
-          type: 'recovery',
+        console.log('Password reset email triggered for promo user:', promo.email);
+
+        return new Response(JSON.stringify({
+          success: true,
+          action: action === 'resend_welcome' ? 'resent_welcome' : 'resent_reset',
           email: promo.email,
-          options: { redirectTo: `${siteUrl}/reset-password` },
-        });
-
-        if (linkError || !linkData?.properties?.action_link) {
-          return new Response(JSON.stringify({ error: 'Failed to generate reset link: ' + (linkError?.message || '') }), {
-            status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          });
-        }
-
-        const resetPasswordUrl = linkData.properties.action_link;
-        const html = await renderAsync(React.createElement(PromoWelcomeEmail, {
-          siteName: 'The Reserve Club',
-          siteUrl,
-          resetPasswordUrl,
-          tierDisplayName: displayName,
-          months: promo.total_months,
-          recipientEmail: promo.email,
-        }));
-        const text = await renderAsync(React.createElement(PromoWelcomeEmail, {
-          siteName: 'The Reserve Club',
-          siteUrl,
-          resetPasswordUrl,
-          tierDisplayName: displayName,
-          months: promo.total_months,
-          recipientEmail: promo.email,
-        }), { plainText: true });
-
-        const messageId = crypto.randomUUID();
-        await supabaseAdmin.from('email_send_log').insert({
-          message_id: messageId,
-          template_name: 'promo_welcome',
-          recipient_email: promo.email,
-          status: 'pending',
-        });
-
-        const { error: enqueueError } = await supabaseAdmin.rpc('enqueue_email', {
-          queue_name: 'transactional_emails',
-          payload: {
-            run_id: crypto.randomUUID(),
-            message_id: messageId,
-            to: promo.email,
-            from: 'The Reserve Club <noreply@vinosaborapp.com>',
-            sender_domain: 'notify.vinosaborapp.com',
-            subject: `You've been gifted a ${displayName} membership!`,
-            html,
-            text,
-            purpose: 'transactional',
-            label: 'promo_welcome',
-            queued_at: new Date().toISOString(),
-          },
-        });
-
-        if (enqueueError) {
-          return new Response(JSON.stringify({ error: 'Failed to enqueue email: ' + enqueueError.message }), {
-            status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          });
-        }
-
-        return new Response(JSON.stringify({ success: true, action: 'resent_welcome', email: promo.email }), {
+        }), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
       }
 
       case 'resend_notification': {
-        // Resend the upgrade notification email (for existing customers)
+        // For existing customers who got upgraded — send a password reset so they
+        // know to log in and see their new tier.
         const siteUrl = Deno.env.get('SITE_URL') || 'https://vinosaborapp.com';
 
-        const { data: tierDef } = await supabaseAdmin
-          .from('tier_definitions')
-          .select('display_name')
-          .eq('tier_name', promo.tier)
-          .single();
+        const { error: resetError } = await supabaseAdmin.auth.resetPasswordForEmail(
+          promo.email,
+          { redirectTo: `${siteUrl}/reset-password` }
+        );
 
-        const displayName = tierDef?.display_name || promo.tier;
-
-        const html = await renderAsync(React.createElement(PromoUpgradeEmail, {
-          siteName: 'The Reserve Club',
-          siteUrl,
-          tierDisplayName: displayName,
-          months: promo.total_months,
-          recipientEmail: promo.email,
-        }));
-        const text = await renderAsync(React.createElement(PromoUpgradeEmail, {
-          siteName: 'The Reserve Club',
-          siteUrl,
-          tierDisplayName: displayName,
-          months: promo.total_months,
-          recipientEmail: promo.email,
-        }), { plainText: true });
-
-        const messageId = crypto.randomUUID();
-        await supabaseAdmin.from('email_send_log').insert({
-          message_id: messageId,
-          template_name: 'promo_upgrade',
-          recipient_email: promo.email,
-          status: 'pending',
-        });
-
-        const { error: enqueueError } = await supabaseAdmin.rpc('enqueue_email', {
-          queue_name: 'transactional_emails',
-          payload: {
-            run_id: crypto.randomUUID(),
-            message_id: messageId,
-            to: promo.email,
-            from: 'The Reserve Club <noreply@vinosaborapp.com>',
-            sender_domain: 'notify.vinosaborapp.com',
-            subject: `Your membership has been upgraded to ${displayName}!`,
-            html,
-            text,
-            purpose: 'transactional',
-            label: 'promo_upgrade',
-            queued_at: new Date().toISOString(),
-          },
-        });
-
-        if (enqueueError) {
-          return new Response(JSON.stringify({ error: 'Failed to enqueue email: ' + enqueueError.message }), {
+        if (resetError) {
+          return new Response(JSON.stringify({ error: 'Failed to send notification email: ' + resetError.message }), {
             status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           });
         }
 
         return new Response(JSON.stringify({ success: true, action: 'resent_notification', email: promo.email }), {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        });
-      }
-
-      case 'resend_reset': {
-        // Legacy: just send a plain password reset (kept for backward compat)
-        const siteUrl = Deno.env.get('SITE_URL') || 'https://vinosaborapp.com';
-        const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
-          type: 'recovery',
-          email: promo.email,
-          options: { redirectTo: `${siteUrl}/reset-password` },
-        });
-
-        if (linkError || !linkData?.properties?.action_link) {
-          return new Response(JSON.stringify({ error: 'Failed to generate reset link: ' + (linkError?.message || '') }), {
-            status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          });
-        }
-
-        // Get tier display name
-        const { data: tierDef } = await supabaseAdmin
-          .from('tier_definitions')
-          .select('display_name')
-          .eq('tier_name', promo.tier)
-          .single();
-
-        const displayName = tierDef?.display_name || promo.tier;
-        const resetPasswordUrl = linkData.properties.action_link;
-
-        const html = await renderAsync(React.createElement(PromoWelcomeEmail, {
-          siteName: 'The Reserve Club',
-          siteUrl,
-          resetPasswordUrl,
-          tierDisplayName: displayName,
-          months: promo.total_months,
-          recipientEmail: promo.email,
-        }));
-        const text = await renderAsync(React.createElement(PromoWelcomeEmail, {
-          siteName: 'The Reserve Club',
-          siteUrl,
-          resetPasswordUrl,
-          tierDisplayName: displayName,
-          months: promo.total_months,
-          recipientEmail: promo.email,
-        }), { plainText: true });
-
-        const messageId = crypto.randomUUID();
-        await supabaseAdmin.from('email_send_log').insert({
-          message_id: messageId,
-          template_name: 'promo_welcome',
-          recipient_email: promo.email,
-          status: 'pending',
-        });
-
-        const { error: enqueueError } = await supabaseAdmin.rpc('enqueue_email', {
-          queue_name: 'transactional_emails',
-          payload: {
-            run_id: crypto.randomUUID(),
-            message_id: messageId,
-            to: promo.email,
-            from: 'The Reserve Club <noreply@vinosaborapp.com>',
-            sender_domain: 'notify.vinosaborapp.com',
-            subject: `You've been gifted a ${displayName} membership!`,
-            html,
-            text,
-            purpose: 'transactional',
-            label: 'promo_welcome',
-            queued_at: new Date().toISOString(),
-          },
-        });
-
-        if (enqueueError) {
-          return new Response(JSON.stringify({ error: 'Failed to enqueue email: ' + enqueueError.message }), {
-            status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          });
-        }
-
-        return new Response(JSON.stringify({ success: true, action: 'resent_reset', email: promo.email }), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
       }

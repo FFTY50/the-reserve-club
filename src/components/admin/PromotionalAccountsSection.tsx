@@ -75,16 +75,23 @@ export function PromotionalAccountsSection() {
         const userIds = customers?.map(c => c.user_id) || [];
         const { data: profiles } = await supabase
           .from('profiles')
-          .select('id, first_name, last_name')
+          .select('id, first_name, last_name, last_login')
           .in('id', userIds);
 
         const customerUserMap = new Map(customers?.map(c => [c.id, c.user_id]) || []);
-        const profileMap = new Map(profiles?.map(p => [p.id, `${p.first_name || ''} ${p.last_name || ''}`.trim()]) || []);
+        const profileMap = new Map(profiles?.map(p => [p.id, {
+          name: `${p.first_name || ''} ${p.last_name || ''}`.trim(),
+          hasLoggedIn: !!p.last_login,
+        }]) || []);
 
-        setPromos(data.map(p => ({
-          ...p,
-          customer_name: profileMap.get(customerUserMap.get(p.customer_id) || '') || p.email,
-        })));
+        setPromos(data.map(p => {
+          const profile = profileMap.get(customerUserMap.get(p.customer_id) || '');
+          return {
+            ...p,
+            customer_name: profile?.name || p.email,
+            has_logged_in: profile?.hasLoggedIn ?? false,
+          };
+        }));
       } else {
         setPromos([]);
       }

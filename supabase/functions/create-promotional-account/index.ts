@@ -239,10 +239,14 @@ serve(async (req) => {
 
     // Send password reset email so the new user can set their password
     if (!existing_customer_id) {
-      await supabaseAdmin.auth.admin.generateLink({
-        type: 'recovery',
-        email: email.toLowerCase(),
-      });
+      const siteUrl = Deno.env.get('SITE_URL') || Deno.env.get('SUPABASE_URL')?.replace('.supabase.co', '.lovable.app') || '';
+      const { error: resetError } = await supabaseAdmin.auth.resetPasswordForEmail(
+        email.toLowerCase(),
+        { redirectTo: `${siteUrl}/reset-password` }
+      );
+      if (resetError) {
+        console.error('Failed to send password reset email:', resetError.message);
+      }
     }
 
     return new Response(JSON.stringify({

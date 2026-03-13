@@ -32,11 +32,13 @@ serve(async (req) => {
     );
 
     // Verify admin role
-    const { data: roleData } = await supabaseAdmin
+    const { data: roleData, error: roleError } = await supabaseAdmin
       .from('user_roles')
       .select('role, is_approved')
       .eq('user_id', user.id)
       .single();
+
+    console.log('Role check:', JSON.stringify(roleData), roleError?.message || '');
 
     if (!roleData || roleData.role !== 'admin' || !roleData.is_approved) {
       return new Response(JSON.stringify({ error: 'Admin access required' }), {

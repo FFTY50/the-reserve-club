@@ -23,3 +23,6 @@ verify_jwt = false
 
 [functions.create-promotional-account]
 verify_jwt = true
+
+[functions.manage-promotional-account]
+verify_jwt = true

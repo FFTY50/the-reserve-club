@@ -41,6 +41,7 @@ interface PromoAccount {
   notes: string | null;
   customer_id: string;
   customer_name?: string;
+  has_logged_in?: boolean;
 }
 
 export function PromotionalAccountsSection() {

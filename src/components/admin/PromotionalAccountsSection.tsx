@@ -110,7 +110,24 @@ export function PromotionalAccountsSection() {
       const { data, error } = await supabase.functions.invoke('manage-promotional-account', {
         body: { promo_id: promoId, action, ...extraBody },
       });
-      if (error) throw new Error('Action failed');
+      if (error) {
+        console.error('Edge function error:', error);
+        // Try to extract the actual error message from the response
+        let message = 'Action failed';
+        try {
+          if (error instanceof Error && 'context' in error) {
+            const ctx = (error as any).context;
+            if (ctx?.body) {
+              const reader = ctx.body.getReader();
+              const { value } = await reader.read();
+              const text = new TextDecoder().decode(value);
+              const parsed = JSON.parse(text);
+              message = parsed.error || message;
+            }
+          }
+        } catch (_) { /* ignore parse errors */ }
+        throw new Error(message);
+      }
       if (data?.error) throw new Error(data.error);
       return data;
     } catch (err: any) {

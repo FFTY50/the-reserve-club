@@ -154,11 +154,8 @@ export function PromotionalAccountsSection() {
     }
   };
 
-  const handleResendNotification = async (promo: PromoAccount) => {
-    const result = await handleAction(promo.id, 'resend_notification');
-    if (result?.success) {
-      toast.success(`Upgrade notification sent to ${promo.email}`);
-    }
+  const handleResendNotification = async (_promo: PromoAccount) => {
+    // Removed — no custom notification emails available
   };
 
   const activePromos = promos.filter(p => p.status === 'active');

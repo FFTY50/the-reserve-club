@@ -142,7 +142,14 @@ export function PromotionalAccountsSection() {
   const handleResendReset = async (promo: PromoAccount) => {
     const result = await handleAction(promo.id, 'resend_reset');
     if (result?.success) {
-      toast.success(`Password reset email sent to ${promo.email}`);
+      toast.success(`Welcome email with password setup sent to ${promo.email}`);
+    }
+  };
+
+  const handleResendNotification = async (promo: PromoAccount) => {
+    const result = await handleAction(promo.id, 'resend_notification');
+    if (result?.success) {
+      toast.success(`Upgrade notification sent to ${promo.email}`);
     }
   };
 
@@ -220,8 +227,8 @@ export function PromotionalAccountsSection() {
                     {promo.notes && (
                       <p className="text-xs text-muted-foreground italic">{promo.notes}</p>
                     )}
-                    {/* Action buttons */}
-                    <div className="flex items-center gap-2 pt-1 border-t">
+                     {/* Action buttons */}
+                    <div className="flex items-center gap-2 pt-1 border-t flex-wrap">
                       <Button
                         variant="outline"
                         size="sm"
@@ -234,7 +241,21 @@ export function PromotionalAccountsSection() {
                         ) : (
                           <Mail className="mr-1 h-3 w-3" />
                         )}
-                        Resend Reset Email
+                        Resend Welcome
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="text-xs h-7"
+                        disabled={actionLoading === promo.id + 'resend_notification'}
+                        onClick={() => handleResendNotification(promo)}
+                      >
+                        {actionLoading === promo.id + 'resend_notification' ? (
+                          <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+                        ) : (
+                          <Mail className="mr-1 h-3 w-3" />
+                        )}
+                        Resend Notification
                       </Button>
                       <Button
                         variant="outline"
@@ -296,7 +317,21 @@ export function PromotionalAccountsSection() {
                             ) : (
                               <Mail className="mr-1 h-3 w-3" />
                             )}
-                            Resend Reset
+                            Resend Welcome
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="text-xs h-7"
+                            disabled={actionLoading === promo.id + 'resend_notification'}
+                            onClick={() => handleResendNotification(promo)}
+                          >
+                            {actionLoading === promo.id + 'resend_notification' ? (
+                              <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+                            ) : (
+                              <Mail className="mr-1 h-3 w-3" />
+                            )}
+                            Resend Notification
                           </Button>
                         </div>
                       </div>

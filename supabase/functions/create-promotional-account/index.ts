@@ -3,6 +3,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import * as React from 'npm:react@18.3.1';
 import { renderAsync } from 'npm:@react-email/components@0.0.22';
 import { PromoWelcomeEmail } from '../_shared/email-templates/promo-welcome.tsx';
+import { PromoUpgradeEmail } from '../_shared/email-templates/promo-upgrade.tsx';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -303,6 +304,53 @@ serve(async (req) => {
         if (enqueueError) {
           console.error('Failed to enqueue promo welcome email:', enqueueError.message);
         }
+      }
+    }
+
+    // Send upgrade notification email for existing customers
+    if (existing_customer_id) {
+      const siteUrl = Deno.env.get('SITE_URL') || 'https://vinosaborapp.com';
+      const html = await renderAsync(React.createElement(PromoUpgradeEmail, {
+        siteName: 'The Reserve Club',
+        siteUrl,
+        tierDisplayName: tierDef.display_name,
+        months,
+        recipientEmail: email.toLowerCase(),
+      }));
+      const text = await renderAsync(React.createElement(PromoUpgradeEmail, {
+        siteName: 'The Reserve Club',
+        siteUrl,
+        tierDisplayName: tierDef.display_name,
+        months,
+        recipientEmail: email.toLowerCase(),
+      }), { plainText: true });
+
+      const messageId = crypto.randomUUID();
+      await supabaseAdmin.from('email_send_log').insert({
+        message_id: messageId,
+        template_name: 'promo_upgrade',
+        recipient_email: email.toLowerCase(),
+        status: 'pending',
+      });
+
+      const { error: enqueueError } = await supabaseAdmin.rpc('enqueue_email', {
+        queue_name: 'auth_emails',
+        payload: {
+          message_id: messageId,
+          to: email.toLowerCase(),
+          from: 'The Reserve Club <noreply@vinosaborapp.com>',
+          sender_domain: 'notify.vinosaborapp.com',
+          subject: `Your membership has been upgraded to ${tierDef.display_name}!`,
+          html,
+          text,
+          purpose: 'transactional',
+          label: 'promo_upgrade',
+          queued_at: new Date().toISOString(),
+        },
+      });
+
+      if (enqueueError) {
+        console.error('Failed to enqueue promo upgrade email:', enqueueError.message);
       }
     }
 

@@ -142,7 +142,14 @@ export function PromotionalAccountsSection() {
   const handleResendReset = async (promo: PromoAccount) => {
     const result = await handleAction(promo.id, 'resend_reset');
     if (result?.success) {
-      toast.success(`Password reset email sent to ${promo.email}`);
+      toast.success(`Welcome email with password setup sent to ${promo.email}`);
+    }
+  };
+
+  const handleResendNotification = async (promo: PromoAccount) => {
+    const result = await handleAction(promo.id, 'resend_notification');
+    if (result?.success) {
+      toast.success(`Upgrade notification sent to ${promo.email}`);
     }
   };
 

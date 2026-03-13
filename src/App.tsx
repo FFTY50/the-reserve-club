@@ -33,11 +33,24 @@ import Inventory from "./pages/admin/Inventory";
 import ManualPour from "./pages/admin/ManualPour";
 import NotFound from "./pages/NotFound";
 
+// Component to handle recovery hash redirect before any routes render
+function RecoveryRedirectHandler() {
+  const navigate = useNavigate();
+  useEffect(() => {
+    const hash = window.location.hash;
+    if (hash && hash.includes('type=recovery')) {
+      navigate('/reset-password' + hash, { replace: true });
+    }
+  }, [navigate]);
+  return null;
+}
+
 const queryClient = new QueryClient();
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <BrowserRouter>
+      <RecoveryRedirectHandler />
       <AuthProvider>
         <TooltipProvider>
           <Toaster />
@@ -45,8 +58,6 @@ const App = () => (
           <HotToaster position="top-right" />
           <Routes>
             <Route path="/" element={<Navigate to="/login" replace />} />
-            <Route path="/login" element={<Login />} />
-            <Route path="/forgot-password" element={<ForgotPassword />} />
             <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="/staff" element={<StaffLogin />} />
             <Route path="/staff/register" element={<StaffRegister />} />

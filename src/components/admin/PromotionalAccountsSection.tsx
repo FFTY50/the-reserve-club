@@ -317,7 +317,21 @@ export function PromotionalAccountsSection() {
                             ) : (
                               <Mail className="mr-1 h-3 w-3" />
                             )}
-                            Resend Reset
+                            Resend Welcome
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="text-xs h-7"
+                            disabled={actionLoading === promo.id + 'resend_notification'}
+                            onClick={() => handleResendNotification(promo)}
+                          >
+                            {actionLoading === promo.id + 'resend_notification' ? (
+                              <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+                            ) : (
+                              <Mail className="mr-1 h-3 w-3" />
+                            )}
+                            Resend Notification
                           </Button>
                         </div>
                       </div>

@@ -1,5 +1,8 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import * as React from 'npm:react@18.3.1';
+import { renderAsync } from 'npm:@react-email/components@0.0.22';
+import { PromoWelcomeEmail } from '../_shared/email-templates/promo-welcome.tsx';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -237,15 +240,69 @@ serve(async (req) => {
       });
     }
 
-    // Send password reset email so the new user can set their password
+    // Send branded welcome email with password reset link for new users
     if (!existing_customer_id) {
-      const siteUrl = Deno.env.get('SITE_URL') || Deno.env.get('SUPABASE_URL')?.replace('.supabase.co', '.lovable.app') || '';
-      const { error: resetError } = await supabaseAdmin.auth.resetPasswordForEmail(
-        email.toLowerCase(),
-        { redirectTo: `${siteUrl}/reset-password` }
-      );
-      if (resetError) {
-        console.error('Failed to send password reset email:', resetError.message);
+      const siteUrl = Deno.env.get('SITE_URL') || 'https://vinosaborapp.com';
+      
+      // Generate a password reset link
+      const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
+        type: 'recovery',
+        email: email.toLowerCase(),
+        options: { redirectTo: `${siteUrl}/reset-password` },
+      });
+
+      if (linkError || !linkData?.properties?.action_link) {
+        console.error('Failed to generate reset link:', linkError?.message);
+      } else {
+        // Render the branded promo welcome email
+        const resetPasswordUrl = linkData.properties.action_link;
+        const html = await renderAsync(React.createElement(PromoWelcomeEmail, {
+          siteName: 'The Reserve Club',
+          siteUrl,
+          resetPasswordUrl,
+          tierDisplayName: tierDef.display_name,
+          months,
+          recipientEmail: email.toLowerCase(),
+        }));
+        const text = await renderAsync(React.createElement(PromoWelcomeEmail, {
+          siteName: 'The Reserve Club',
+          siteUrl,
+          resetPasswordUrl,
+          tierDisplayName: tierDef.display_name,
+          months,
+          recipientEmail: email.toLowerCase(),
+        }), { plainText: true });
+
+        const messageId = crypto.randomUUID();
+
+        // Log pending
+        await supabaseAdmin.from('email_send_log').insert({
+          message_id: messageId,
+          template_name: 'promo_welcome',
+          recipient_email: email.toLowerCase(),
+          status: 'pending',
+        });
+
+        // Enqueue via the email queue
+        const { error: enqueueError } = await supabaseAdmin.rpc('enqueue_email', {
+          queue_name: 'auth_emails',
+          payload: {
+            message_id: messageId,
+            to: email.toLowerCase(),
+            from: 'The Reserve Club <noreply@vinosaborapp.com>',
+            sender_domain: 'notify.vinosaborapp.com',
+            subject: `You've been gifted a ${tierDef.display_name} membership!`,
+            html,
+            text,
+            purpose: 'transactional',
+            label: 'promo_welcome',
+            queued_at: new Date().toISOString(),
+          },
+        });
+
+        if (enqueueError) {
+          console.error('Failed to enqueue promo welcome email:', enqueueError.message);
+        }
       }
     }
 

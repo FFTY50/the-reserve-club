@@ -8,6 +8,7 @@ import { Users, UserCheck, Wine, Settings, Shield, Package, AlertTriangle, QrCod
 import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { StaffAdminHeader } from '@/components/StaffAdminHeader';
+import { PromotionalAccountsSection } from '@/components/admin/PromotionalAccountsSection';
 import { format } from 'date-fns';
 
 interface DashboardStats {

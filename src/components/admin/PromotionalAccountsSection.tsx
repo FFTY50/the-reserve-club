@@ -41,6 +41,7 @@ interface PromoAccount {
   notes: string | null;
   customer_id: string;
   customer_name?: string;
+  has_logged_in?: boolean;
 }
 
 export function PromotionalAccountsSection() {
@@ -74,16 +75,23 @@ export function PromotionalAccountsSection() {
         const userIds = customers?.map(c => c.user_id) || [];
         const { data: profiles } = await supabase
           .from('profiles')
-          .select('id, first_name, last_name')
+          .select('id, first_name, last_name, last_login')
           .in('id', userIds);
 
         const customerUserMap = new Map(customers?.map(c => [c.id, c.user_id]) || []);
-        const profileMap = new Map(profiles?.map(p => [p.id, `${p.first_name || ''} ${p.last_name || ''}`.trim()]) || []);
+        const profileMap = new Map(profiles?.map(p => [p.id, {
+          name: `${p.first_name || ''} ${p.last_name || ''}`.trim(),
+          hasLoggedIn: !!p.last_login,
+        }]) || []);
 
-        setPromos(data.map(p => ({
-          ...p,
-          customer_name: profileMap.get(customerUserMap.get(p.customer_id) || '') || p.email,
-        })));
+        setPromos(data.map(p => {
+          const profile = profileMap.get(customerUserMap.get(p.customer_id) || '');
+          return {
+            ...p,
+            customer_name: profile?.name || p.email,
+            has_logged_in: profile?.hasLoggedIn ?? false,
+          };
+        }));
       } else {
         setPromos([]);
       }
@@ -146,12 +154,6 @@ export function PromotionalAccountsSection() {
     }
   };
 
-  const handleResendNotification = async (promo: PromoAccount) => {
-    const result = await handleAction(promo.id, 'resend_notification');
-    if (result?.success) {
-      toast.success(`Upgrade notification sent to ${promo.email}`);
-    }
-  };
 
   const activePromos = promos.filter(p => p.status === 'active');
   const expiredPromos = promos.filter(p => p.status !== 'active');
@@ -229,34 +231,22 @@ export function PromotionalAccountsSection() {
                     )}
                      {/* Action buttons */}
                     <div className="flex items-center gap-2 pt-1 border-t flex-wrap">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="text-xs h-7"
-                        disabled={actionLoading === promo.id + 'resend_reset'}
-                        onClick={() => handleResendReset(promo)}
-                      >
-                        {actionLoading === promo.id + 'resend_reset' ? (
-                          <Loader2 className="mr-1 h-3 w-3 animate-spin" />
-                        ) : (
-                          <Mail className="mr-1 h-3 w-3" />
-                        )}
-                        Resend Welcome
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="text-xs h-7"
-                        disabled={actionLoading === promo.id + 'resend_notification'}
-                        onClick={() => handleResendNotification(promo)}
-                      >
-                        {actionLoading === promo.id + 'resend_notification' ? (
-                          <Loader2 className="mr-1 h-3 w-3 animate-spin" />
-                        ) : (
-                          <Mail className="mr-1 h-3 w-3" />
-                        )}
-                        Resend Notification
-                      </Button>
+                      {!promo.has_logged_in && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="text-xs h-7"
+                          disabled={actionLoading === promo.id + 'resend_reset'}
+                          onClick={() => handleResendReset(promo)}
+                        >
+                          {actionLoading === promo.id + 'resend_reset' ? (
+                            <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+                          ) : (
+                            <Mail className="mr-1 h-3 w-3" />
+                          )}
+                          Resend Welcome
+                        </Button>
+                      )}
                       <Button
                         variant="outline"
                         size="sm"
@@ -305,34 +295,22 @@ export function PromotionalAccountsSection() {
                             <PlusCircle className="mr-1 h-3 w-3" />
                             Reactivate & Extend
                           </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="text-xs h-7"
-                            disabled={actionLoading === promo.id + 'resend_reset'}
-                            onClick={() => handleResendReset(promo)}
-                          >
-                            {actionLoading === promo.id + 'resend_reset' ? (
-                              <Loader2 className="mr-1 h-3 w-3 animate-spin" />
-                            ) : (
-                              <Mail className="mr-1 h-3 w-3" />
-                            )}
-                            Resend Welcome
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="text-xs h-7"
-                            disabled={actionLoading === promo.id + 'resend_notification'}
-                            onClick={() => handleResendNotification(promo)}
-                          >
-                            {actionLoading === promo.id + 'resend_notification' ? (
-                              <Loader2 className="mr-1 h-3 w-3 animate-spin" />
-                            ) : (
-                              <Mail className="mr-1 h-3 w-3" />
-                            )}
-                            Resend Notification
-                          </Button>
+                          {!promo.has_logged_in && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="text-xs h-7"
+                              disabled={actionLoading === promo.id + 'resend_reset'}
+                              onClick={() => handleResendReset(promo)}
+                            >
+                              {actionLoading === promo.id + 'resend_reset' ? (
+                                <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+                              ) : (
+                                <Mail className="mr-1 h-3 w-3" />
+                              )}
+                              Resend Welcome
+                            </Button>
+                          )}
                         </div>
                       </div>
                     ))}

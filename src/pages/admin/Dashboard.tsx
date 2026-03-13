@@ -180,6 +180,9 @@ export default function AdminDashboard() {
             <p className="text-muted-foreground">Manage your wine club</p>
           </div>
 
+        {/* Promotional Accounts - Top of Dashboard */}
+        <PromotionalAccountsSection />
+
         {/* Stats Grid */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {statCards.map((stat) => (

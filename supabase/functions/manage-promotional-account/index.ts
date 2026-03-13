@@ -19,7 +19,6 @@ serve(async (req) => {
     );
 
     const { data: { user }, error: authError } = await supabaseClient.auth.getUser();
-    console.log('Auth check:', user?.id ? 'authenticated' : 'failed', authError?.message || '');
     if (authError || !user) {
       return new Response(JSON.stringify({ error: 'Unauthorized' }), {
         status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -32,13 +31,12 @@ serve(async (req) => {
     );
 
     // Verify admin role
-    const { data: roleData, error: roleError } = await supabaseAdmin
+    const { data: roleData } = await supabaseAdmin
       .from('user_roles')
       .select('role, is_approved')
       .eq('user_id', user.id)
       .single();
 
-    console.log('Role check:', JSON.stringify(roleData), roleError?.message || '');
 
     if (!roleData || roleData.role !== 'admin' || !roleData.is_approved) {
       return new Response(JSON.stringify({ error: 'Admin access required' }), {

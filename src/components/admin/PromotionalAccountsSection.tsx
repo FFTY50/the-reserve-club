@@ -333,7 +333,6 @@ export function PromotionalAccountsSection() {
                               Resend Welcome
                             </Button>
                           )}
-                          </Button>
                         </div>
                       </div>
                     ))}

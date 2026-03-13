@@ -8,6 +8,7 @@ import { Users, UserCheck, Wine, Settings, Shield, Package, AlertTriangle, QrCod
 import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { StaffAdminHeader } from '@/components/StaffAdminHeader';
+import { PromotionalAccountsSection } from '@/components/admin/PromotionalAccountsSection';
 import { format } from 'date-fns';
 
 interface DashboardStats {
@@ -178,6 +179,9 @@ export default function AdminDashboard() {
             <h1 className="text-3xl font-serif">Admin Dashboard</h1>
             <p className="text-muted-foreground">Manage your wine club</p>
           </div>
+
+        {/* Promotional Accounts - Top of Dashboard */}
+        <PromotionalAccountsSection />
 
         {/* Stats Grid */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">

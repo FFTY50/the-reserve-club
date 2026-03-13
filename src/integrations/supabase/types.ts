@@ -332,6 +332,79 @@ export type Database = {
         }
         Relationships: []
       }
+      promotional_accounts: {
+        Row: {
+          created_at: string
+          created_by: string
+          customer_id: string
+          email: string
+          expires_at: string
+          id: string
+          membership_id: string
+          months_remaining: number
+          notes: string | null
+          started_at: string
+          status: string
+          tier: Database["public"]["Enums"]["customer_tier"]
+          total_months: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          customer_id: string
+          email: string
+          expires_at: string
+          id?: string
+          membership_id: string
+          months_remaining: number
+          notes?: string | null
+          started_at?: string
+          status?: string
+          tier: Database["public"]["Enums"]["customer_tier"]
+          total_months: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          customer_id?: string
+          email?: string
+          expires_at?: string
+          id?: string
+          membership_id?: string
+          months_remaining?: number
+          notes?: string | null
+          started_at?: string
+          status?: string
+          tier?: Database["public"]["Enums"]["customer_tier"]
+          total_months?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "promotional_accounts_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "promotional_accounts_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers_public"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "promotional_accounts_membership_id_fkey"
+            columns: ["membership_id"]
+            isOneToOne: false
+            referencedRelation: "memberships"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       qr_verification_logs: {
         Row: {
           created_at: string

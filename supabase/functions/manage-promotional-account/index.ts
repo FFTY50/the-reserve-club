@@ -31,7 +31,7 @@ serve(async (req) => {
     );
 
     // Verify admin role
-    const { data: roleData, error: roleError } = await supabaseAdmin
+    const { data: roleData } = await supabaseAdmin
       .from('user_roles')
       .select('role, is_approved')
       .eq('user_id', user.id)

@@ -335,8 +335,9 @@ serve(async (req) => {
       });
 
       const { error: enqueueError } = await supabaseAdmin.rpc('enqueue_email', {
-        queue_name: 'auth_emails',
+        queue_name: 'transactional_emails',
         payload: {
+          run_id: crypto.randomUUID(),
           message_id: messageId,
           to: email.toLowerCase(),
           from: 'The Reserve Club <noreply@vinosaborapp.com>',

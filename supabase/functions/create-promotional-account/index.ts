@@ -1,9 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-import * as React from 'npm:react@18.3.1';
-import { renderAsync } from 'npm:@react-email/components@0.0.22';
-import { PromoWelcomeEmail } from '../_shared/email-templates/promo-welcome.tsx';
-import { PromoUpgradeEmail } from '../_shared/email-templates/promo-upgrade.tsx';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -241,118 +237,23 @@ serve(async (req) => {
       });
     }
 
-    // Send branded welcome email with password reset link for new users
+    // Send password reset email via the built-in auth system.
+    // This flows through the auth-email-hook which sends the branded recovery email.
+    // For new users this serves as their "welcome + set your password" email.
+    // For existing users getting a promo upgrade, no email is needed (they already have access).
     if (!existing_customer_id) {
       const siteUrl = Deno.env.get('SITE_URL') || 'https://vinosaborapp.com';
-      
-      // Generate a password reset link
-      const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
-        type: 'recovery',
-        email: email.toLowerCase(),
-        options: { redirectTo: `${siteUrl}/reset-password` },
-      });
 
-      if (linkError || !linkData?.properties?.action_link) {
-        console.error('Failed to generate reset link:', linkError?.message);
+      const { error: resetError } = await supabaseAdmin.auth.resetPasswordForEmail(
+        email.toLowerCase(),
+        { redirectTo: `${siteUrl}/reset-password` }
+      );
+
+      if (resetError) {
+        console.error('Failed to send password reset email:', resetError.message);
+        // Don't fail the whole operation — account is created, email can be resent
       } else {
-        // Render the branded promo welcome email
-        const resetPasswordUrl = linkData.properties.action_link;
-        const html = await renderAsync(React.createElement(PromoWelcomeEmail, {
-          siteName: 'The Reserve Club',
-          siteUrl,
-          resetPasswordUrl,
-          tierDisplayName: tierDef.display_name,
-          months,
-          recipientEmail: email.toLowerCase(),
-        }));
-        const text = await renderAsync(React.createElement(PromoWelcomeEmail, {
-          siteName: 'The Reserve Club',
-          siteUrl,
-          resetPasswordUrl,
-          tierDisplayName: tierDef.display_name,
-          months,
-          recipientEmail: email.toLowerCase(),
-        }), { plainText: true });
-
-        const messageId = crypto.randomUUID();
-
-        // Log pending
-        await supabaseAdmin.from('email_send_log').insert({
-          message_id: messageId,
-          template_name: 'promo_welcome',
-          recipient_email: email.toLowerCase(),
-          status: 'pending',
-        });
-
-        // Enqueue via the email queue
-        const { error: enqueueError } = await supabaseAdmin.rpc('enqueue_email', {
-          queue_name: 'transactional_emails',
-          payload: {
-            run_id: crypto.randomUUID(),
-            message_id: messageId,
-            to: email.toLowerCase(),
-            from: 'The Reserve Club <noreply@vinosaborapp.com>',
-            sender_domain: 'notify.vinosaborapp.com',
-            subject: `You've been gifted a ${tierDef.display_name} membership!`,
-            html,
-            text,
-            purpose: 'transactional',
-            label: 'promo_welcome',
-            queued_at: new Date().toISOString(),
-          },
-        });
-
-        if (enqueueError) {
-          console.error('Failed to enqueue promo welcome email:', enqueueError.message);
-        }
-      }
-    }
-
-    // Send upgrade notification email for existing customers
-    if (existing_customer_id) {
-      const siteUrl = Deno.env.get('SITE_URL') || 'https://vinosaborapp.com';
-      const html = await renderAsync(React.createElement(PromoUpgradeEmail, {
-        siteName: 'The Reserve Club',
-        siteUrl,
-        tierDisplayName: tierDef.display_name,
-        months,
-        recipientEmail: email.toLowerCase(),
-      }));
-      const text = await renderAsync(React.createElement(PromoUpgradeEmail, {
-        siteName: 'The Reserve Club',
-        siteUrl,
-        tierDisplayName: tierDef.display_name,
-        months,
-        recipientEmail: email.toLowerCase(),
-      }), { plainText: true });
-
-      const messageId = crypto.randomUUID();
-      await supabaseAdmin.from('email_send_log').insert({
-        message_id: messageId,
-        template_name: 'promo_upgrade',
-        recipient_email: email.toLowerCase(),
-        status: 'pending',
-      });
-
-      const { error: enqueueError } = await supabaseAdmin.rpc('enqueue_email', {
-        queue_name: 'transactional_emails',
-        payload: {
-          run_id: crypto.randomUUID(),
-          message_id: messageId,
-          to: email.toLowerCase(),
-          from: 'The Reserve Club <noreply@vinosaborapp.com>',
-          sender_domain: 'notify.vinosaborapp.com',
-          subject: `Your membership has been upgraded to ${tierDef.display_name}!`,
-          html,
-          text,
-          purpose: 'transactional',
-          label: 'promo_upgrade',
-          queued_at: new Date().toISOString(),
-        },
-      });
-
-      if (enqueueError) {
-        console.error('Failed to enqueue promo upgrade email:', enqueueError.message);
+        console.log('Password reset email triggered for new promo user:', email.toLowerCase());
       }
     }
 

@@ -234,34 +234,41 @@ export function PromotionalAccountsSection() {
                     )}
                      {/* Action buttons */}
                     <div className="flex items-center gap-2 pt-1 border-t flex-wrap">
+                      {!promo.has_logged_in && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="text-xs h-7"
+                          disabled={actionLoading === promo.id + 'resend_reset'}
+                          onClick={() => handleResendReset(promo)}
+                        >
+                          {actionLoading === promo.id + 'resend_reset' ? (
+                            <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+                          ) : (
+                            <Mail className="mr-1 h-3 w-3" />
+                          )}
+                          Resend Welcome
+                        </Button>
+                      )}
                       <Button
                         variant="outline"
                         size="sm"
                         className="text-xs h-7"
-                        disabled={actionLoading === promo.id + 'resend_reset'}
-                        onClick={() => handleResendReset(promo)}
+                        onClick={() => setExtendTarget(promo)}
                       >
-                        {actionLoading === promo.id + 'resend_reset' ? (
-                          <Loader2 className="mr-1 h-3 w-3 animate-spin" />
-                        ) : (
-                          <Mail className="mr-1 h-3 w-3" />
-                        )}
-                        Resend Welcome
+                        <PlusCircle className="mr-1 h-3 w-3" />
+                        Extend
                       </Button>
                       <Button
                         variant="outline"
                         size="sm"
-                        className="text-xs h-7"
-                        disabled={actionLoading === promo.id + 'resend_notification'}
-                        onClick={() => handleResendNotification(promo)}
+                        className="text-xs h-7 text-destructive hover:text-destructive"
+                        onClick={() => setCancelTarget(promo)}
                       >
-                        {actionLoading === promo.id + 'resend_notification' ? (
-                          <Loader2 className="mr-1 h-3 w-3 animate-spin" />
-                        ) : (
-                          <Mail className="mr-1 h-3 w-3" />
-                        )}
-                        Resend Notification
+                        <XCircle className="mr-1 h-3 w-3" />
+                        Cancel
                       </Button>
+                    </div>
                       <Button
                         variant="outline"
                         size="sm"

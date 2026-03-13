@@ -269,25 +269,6 @@ export function PromotionalAccountsSection() {
                         Cancel
                       </Button>
                     </div>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="text-xs h-7"
-                        onClick={() => setExtendTarget(promo)}
-                      >
-                        <PlusCircle className="mr-1 h-3 w-3" />
-                        Extend
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="text-xs h-7 text-destructive hover:text-destructive"
-                        onClick={() => setCancelTarget(promo)}
-                      >
-                        <XCircle className="mr-1 h-3 w-3" />
-                        Cancel
-                      </Button>
-                    </div>
                   </div>
                 );
               })}

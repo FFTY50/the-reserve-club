@@ -317,33 +317,22 @@ export function PromotionalAccountsSection() {
                             <PlusCircle className="mr-1 h-3 w-3" />
                             Reactivate & Extend
                           </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="text-xs h-7"
-                            disabled={actionLoading === promo.id + 'resend_reset'}
-                            onClick={() => handleResendReset(promo)}
-                          >
-                            {actionLoading === promo.id + 'resend_reset' ? (
-                              <Loader2 className="mr-1 h-3 w-3 animate-spin" />
-                            ) : (
-                              <Mail className="mr-1 h-3 w-3" />
-                            )}
-                            Resend Welcome
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="text-xs h-7"
-                            disabled={actionLoading === promo.id + 'resend_notification'}
-                            onClick={() => handleResendNotification(promo)}
-                          >
-                            {actionLoading === promo.id + 'resend_notification' ? (
-                              <Loader2 className="mr-1 h-3 w-3 animate-spin" />
-                            ) : (
-                              <Mail className="mr-1 h-3 w-3" />
-                            )}
-                            Resend Notification
+                          {!promo.has_logged_in && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="text-xs h-7"
+                              disabled={actionLoading === promo.id + 'resend_reset'}
+                              onClick={() => handleResendReset(promo)}
+                            >
+                              {actionLoading === promo.id + 'resend_reset' ? (
+                                <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+                              ) : (
+                                <Mail className="mr-1 h-3 w-3" />
+                              )}
+                              Resend Welcome
+                            </Button>
+                          )}
                           </Button>
                         </div>
                       </div>

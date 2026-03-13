@@ -227,8 +227,8 @@ export function PromotionalAccountsSection() {
                     {promo.notes && (
                       <p className="text-xs text-muted-foreground italic">{promo.notes}</p>
                     )}
-                    {/* Action buttons */}
-                    <div className="flex items-center gap-2 pt-1 border-t">
+                     {/* Action buttons */}
+                    <div className="flex items-center gap-2 pt-1 border-t flex-wrap">
                       <Button
                         variant="outline"
                         size="sm"
@@ -241,7 +241,21 @@ export function PromotionalAccountsSection() {
                         ) : (
                           <Mail className="mr-1 h-3 w-3" />
                         )}
-                        Resend Reset Email
+                        Resend Welcome
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="text-xs h-7"
+                        disabled={actionLoading === promo.id + 'resend_notification'}
+                        onClick={() => handleResendNotification(promo)}
+                      >
+                        {actionLoading === promo.id + 'resend_notification' ? (
+                          <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+                        ) : (
+                          <Mail className="mr-1 h-3 w-3" />
+                        )}
+                        Resend Notification
                       </Button>
                       <Button
                         variant="outline"

@@ -36,10 +36,10 @@ const EMAIL_TEMPLATES: Record<string, React.ComponentType<any>> = {
 }
 
 // Configuration
-const SITE_NAME = "the-reserve-club"
+const SITE_NAME = "The Reserve Club"
 const SENDER_DOMAIN = "notify.vinosaborapp.com"
 const ROOT_DOMAIN = "vinosaborapp.com"
-const FROM_DOMAIN = "vinosaborapp.com" // Domain shown in From address (may be root or sender subdomain)
+const FROM_DOMAIN = "notify.vinosaborapp.com" // Must match SENDER_DOMAIN to avoid "on behalf of" headers
 
 // Sample data for preview mode ONLY (not used in actual email sending).
 // URLs are baked in at scaffold time from the project's real data.

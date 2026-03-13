@@ -2,9 +2,10 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useNavigate } from "react-router-dom";
 import { Toaster as HotToaster } from "react-hot-toast";
 import { AuthProvider } from "./contexts/AuthContext";
+import { useEffect } from "react";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import Login from "./pages/Login";
 import ForgotPassword from "./pages/ForgotPassword";
@@ -32,11 +33,24 @@ import Inventory from "./pages/admin/Inventory";
 import ManualPour from "./pages/admin/ManualPour";
 import NotFound from "./pages/NotFound";
 
+// Component to handle recovery hash redirect before any routes render
+function RecoveryRedirectHandler() {
+  const navigate = useNavigate();
+  useEffect(() => {
+    const hash = window.location.hash;
+    if (hash && hash.includes('type=recovery')) {
+      navigate('/reset-password' + hash, { replace: true });
+    }
+  }, [navigate]);
+  return null;
+}
+
 const queryClient = new QueryClient();
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <BrowserRouter>
+      <RecoveryRedirectHandler />
       <AuthProvider>
         <TooltipProvider>
           <Toaster />

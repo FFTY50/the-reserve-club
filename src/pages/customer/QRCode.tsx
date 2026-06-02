@@ -58,7 +58,7 @@ export default function QRCodePage() {
       // Try as primary user first
       const { data: customer } = await supabase
         .from('customers')
-        .select('id, activation_key, tier, member_since')
+        .select('id, tier, member_since')
         .eq('user_id', user.id)
         .maybeSingle();
 

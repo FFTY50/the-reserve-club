@@ -103,7 +103,6 @@ export default function QRCodePage() {
           // Set basic data for display
           setCustomerData({
             id: user.id,
-            activation_key: '',
             tier: 'select',
             member_since: new Date().toISOString(),
             ...profile,

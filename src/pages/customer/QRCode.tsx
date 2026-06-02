@@ -10,7 +10,6 @@ import { ArrowLeft, Download, Printer } from 'lucide-react';
 
 interface CustomerData {
   id: string;
-  activation_key: string;
   tier: 'select' | 'premier' | 'elite' | 'household';
   member_since: string;
   first_name: string;

@@ -69,7 +69,6 @@ export default function QRCodePage() {
         if (familyRows && familyRows.length > 0 && familyRows[0].status === 'active') {
           resolvedCustomer = {
             id: familyRows[0].id,
-            activation_key: '',
             tier: familyRows[0].tier,
             member_since: familyRows[0].member_since,
           };

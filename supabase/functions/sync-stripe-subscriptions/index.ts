@@ -19,10 +19,45 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
-  const supabaseAdmin = createClient(
-    Deno.env.get('SUPABASE_URL') ?? '',
-    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-  );
+  const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
+  const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
+  const anonKey = Deno.env.get('SUPABASE_ANON_KEY') ?? '';
+  const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey);
+
+  // AuthZ: require either the service role bearer (used by pg_cron) or an approved admin JWT.
+  const authHeader = req.headers.get('Authorization') ?? '';
+  const token = authHeader.replace('Bearer ', '').trim();
+  let authorized = false;
+
+  if (token && serviceRoleKey && token === serviceRoleKey) {
+    authorized = true;
+  } else if (token) {
+    try {
+      const userClient = createClient(supabaseUrl, anonKey, {
+        global: { headers: { Authorization: `Bearer ${token}` } },
+      });
+      const { data: userData } = await userClient.auth.getUser();
+      if (userData?.user) {
+        const { data: roleRow } = await supabaseAdmin
+          .from('user_roles')
+          .select('role, is_approved')
+          .eq('user_id', userData.user.id)
+          .eq('role', 'admin')
+          .eq('is_approved', true)
+          .maybeSingle();
+        if (roleRow) authorized = true;
+      }
+    } catch (_) {
+      // fall through to 401
+    }
+  }
+
+  if (!authorized) {
+    return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+      status: 401,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
+  }
 
   const stripeSecretKey = Deno.env.get('STRIPE_SECRET_KEY');
   if (!stripeSecretKey) {

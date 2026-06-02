@@ -10,7 +10,6 @@ import { ArrowLeft, Download, Printer } from 'lucide-react';
 
 interface CustomerData {
   id: string;
-  activation_key: string;
   tier: 'select' | 'premier' | 'elite' | 'household';
   member_since: string;
   first_name: string;
@@ -58,7 +57,7 @@ export default function QRCodePage() {
       // Try as primary user first
       const { data: customer } = await supabase
         .from('customers')
-        .select('id, activation_key, tier, member_since')
+        .select('id, tier, member_since')
         .eq('user_id', user.id)
         .maybeSingle();
 
@@ -70,7 +69,6 @@ export default function QRCodePage() {
         if (familyRows && familyRows.length > 0 && familyRows[0].status === 'active') {
           resolvedCustomer = {
             id: familyRows[0].id,
-            activation_key: '',
             tier: familyRows[0].tier,
             member_since: familyRows[0].member_since,
           };
@@ -86,7 +84,6 @@ export default function QRCodePage() {
       if (resolvedCustomer && profile) {
         setCustomerData({
           id: resolvedCustomer.id,
-          activation_key: resolvedCustomer.activation_key ?? '',
           tier: resolvedCustomer.tier,
           member_since: resolvedCustomer.member_since,
           first_name: profile.first_name,
@@ -106,7 +103,6 @@ export default function QRCodePage() {
           // Set basic data for display
           setCustomerData({
             id: user.id,
-            activation_key: '',
             tier: 'select',
             member_since: new Date().toISOString(),
             ...profile,

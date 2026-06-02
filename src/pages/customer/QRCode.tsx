@@ -84,7 +84,6 @@ export default function QRCodePage() {
       if (resolvedCustomer && profile) {
         setCustomerData({
           id: resolvedCustomer.id,
-          activation_key: resolvedCustomer.activation_key ?? '',
           tier: resolvedCustomer.tier,
           member_since: resolvedCustomer.member_since,
           first_name: profile.first_name,

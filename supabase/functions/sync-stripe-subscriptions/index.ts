@@ -252,10 +252,41 @@ serve(async (req) => {
         for (const sub of stripeSubs.data || []) {
           const { data: existing } = await supabaseAdmin
             .from('memberships')
-            .select('id')
+            .select('id, status, customer_id')
             .eq('stripe_subscription_id', sub.id)
             .maybeSingle();
-          if (existing) continue;
+          if (existing) {
+            // Reactivate if Stripe says active but we marked it cancelled/expired
+            if (existing.status !== 'active') {
+              const stripePriceId = sub.items?.data?.[0]?.price?.id;
+              const tierInfo = stripePriceId ? priceIdToTier.get(stripePriceId) : null;
+              await supabaseAdmin
+                .from('memberships')
+                .update({
+                  status: 'active',
+                  billing_period_start: sub.current_period_start ? new Date(sub.current_period_start * 1000).toISOString() : null,
+                  billing_period_end: sub.current_period_end ? new Date(sub.current_period_end * 1000).toISOString() : null,
+                })
+                .eq('id', existing.id);
+              await supabaseAdmin
+                .from('customers')
+                .update({
+                  status: 'active',
+                  ...(tierInfo ? { tier: tierInfo.tier_name, pours_balance: tierInfo.monthly_pours } : {}),
+                })
+                .eq('id', existing.customer_id);
+              summary.updated++;
+              summary.details.push(`Reactivated membership ${existing.id} (subscription ${sub.id} active in Stripe)`);
+              await supabaseAdmin.from('sync_logs').insert({
+                sync_type: 'stripe_subscription_discovery',
+                customer_id: existing.customer_id,
+                membership_id: existing.id,
+                status: 'success',
+                changes: { reactivated: true, subscription: sub.id },
+              });
+            }
+            continue;
+          }
 
           // New subscription we don't know about — resolve the customer
           const stripeCustId = sub.customer as string;

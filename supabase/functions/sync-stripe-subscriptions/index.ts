@@ -32,6 +32,18 @@ serve(async (req) => {
   if (token && serviceRoleKey && token === serviceRoleKey) {
     authorized = true;
   } else if (token) {
+    // Accept the shared cron token stored in system_settings (used by the nightly pg_cron job)
+    const { data: tokenRow } = await supabaseAdmin
+      .from('system_settings')
+      .select('value')
+      .eq('key', 'sync_cron_token')
+      .maybeSingle();
+    if (tokenRow?.value && token === tokenRow.value) {
+      authorized = true;
+    }
+  }
+
+  if (!authorized && token) {
     try {
       const userClient = createClient(supabaseUrl, anonKey, {
         global: { headers: { Authorization: `Bearer ${token}` } },

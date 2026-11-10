@@ -239,6 +239,123 @@ serve(async (req) => {
       }
     }
 
+    // Discovery phase: find active Stripe subscriptions with no matching membership row.
+    // This catches subscriptions created directly in the Stripe Dashboard (or after a
+    // previous cancellation) that the webhook never recorded.
+    try {
+      const stripeSubsRes = await fetch(
+        'https://api.stripe.com/v1/subscriptions?status=active&limit=100',
+        { headers: { 'Authorization': `Bearer ${stripeSecretKey}` } }
+      );
+      if (stripeSubsRes.ok) {
+        const stripeSubs = await stripeSubsRes.json();
+        for (const sub of stripeSubs.data || []) {
+          const { data: existing } = await supabaseAdmin
+            .from('memberships')
+            .select('id')
+            .eq('stripe_subscription_id', sub.id)
+            .maybeSingle();
+          if (existing) continue;
+
+          // New subscription we don't know about — resolve the customer
+          const stripeCustId = sub.customer as string;
+          let customerRow: { id: string; user_id: string } | null = null;
+
+          const { data: byStripeId } = await supabaseAdmin
+            .from('memberships')
+            .select('customer_id, customers!inner(id, user_id)')
+            .eq('stripe_customer_id', stripeCustId)
+            .limit(1)
+            .maybeSingle();
+          if (byStripeId?.customers) {
+            customerRow = byStripeId.customers as unknown as { id: string; user_id: string };
+          }
+
+          if (!customerRow) {
+            // Fall back to matching the Stripe customer's email to a profile
+            const custRes = await fetch(`https://api.stripe.com/v1/customers/${stripeCustId}`, {
+              headers: { 'Authorization': `Bearer ${stripeSecretKey}` },
+            });
+            if (!custRes.ok) continue;
+            const stripeCust = await custRes.json();
+            if (!stripeCust.email) continue;
+            const { data: profile } = await supabaseAdmin
+              .from('profiles')
+              .select('id')
+              .ilike('email', stripeCust.email)
+              .maybeSingle();
+            if (!profile) continue;
+            const { data: cust } = await supabaseAdmin
+              .from('customers')
+              .select('id, user_id')
+              .eq('user_id', profile.id)
+              .maybeSingle();
+            if (!cust) continue;
+            customerRow = cust;
+          }
+
+          const stripePriceId = sub.items?.data?.[0]?.price?.id;
+          const tierInfo = stripePriceId ? priceIdToTier.get(stripePriceId) : null;
+          if (!tierInfo) {
+            await supabaseAdmin.from('sync_logs').insert({
+              sync_type: 'stripe_subscription_discovery',
+              customer_id: customerRow.id,
+              status: 'error',
+              error_message: `Unknown price ${stripePriceId} for subscription ${sub.id}`,
+              changes: {},
+            });
+            continue;
+          }
+
+          const { data: newMembership, error: insertError } = await supabaseAdmin
+            .from('memberships')
+            .insert({
+              customer_id: customerRow.id,
+              tier: tierInfo.tier_name,
+              start_date: new Date((sub.start_date ?? sub.created) * 1000).toISOString().slice(0, 10),
+              monthly_price: tierInfo.monthly_price,
+              status: 'active',
+              stripe_subscription_id: sub.id,
+              stripe_customer_id: stripeCustId,
+              billing_period_start: sub.current_period_start ? new Date(sub.current_period_start * 1000).toISOString() : null,
+              billing_period_end: sub.current_period_end ? new Date(sub.current_period_end * 1000).toISOString() : null,
+              toast_reference_number: `STRIPE-SYNC-${sub.id}`,
+            })
+            .select('id')
+            .single();
+
+          if (insertError) {
+            summary.errored++;
+            await supabaseAdmin.from('sync_logs').insert({
+              sync_type: 'stripe_subscription_discovery',
+              customer_id: customerRow.id,
+              status: 'error',
+              error_message: insertError.message,
+              changes: {},
+            });
+            continue;
+          }
+
+          await supabaseAdmin
+            .from('customers')
+            .update({ status: 'active', tier: tierInfo.tier_name, pours_balance: tierInfo.monthly_pours })
+            .eq('id', customerRow.id);
+
+          summary.updated++;
+          summary.details.push(`Discovered new subscription ${sub.id} for customer ${customerRow.id}`);
+          await supabaseAdmin.from('sync_logs').insert({
+            sync_type: 'stripe_subscription_discovery',
+            customer_id: customerRow.id,
+            membership_id: newMembership.id,
+            status: 'success',
+            changes: { discovered_subscription: sub.id, tier: tierInfo.tier_name },
+          });
+        }
+      }
+    } catch (discoveryError) {
+      console.error('Discovery phase failed:', discoveryError);
+    }
+
     // Insert summary row
     await supabaseAdmin.from('sync_logs').insert({
       sync_type: 'batch_sync_summary',
